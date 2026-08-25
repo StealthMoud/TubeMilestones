@@ -1,29 +1,22 @@
-# Gradle and Kotlin
-.gradle/
-.kotlin/
-build/
-**/build/
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
 
-# Local Android configuration
-local.properties
-*.iml
+# Local configuration
+.env.local
+.env.*.local
+
+# Editors and operating systems
 .idea/
-
-# Signing and secrets
-*.jks
-*.keystore
-keystore.properties
-secrets.properties
-
-# Native and generated artifacts
-.externalNativeBuild/
-.cxx/
-captures/
-*.apk
-*.aab
-
-# OS and editor files
+.vscode/
 .DS_Store
 Thumbs.db
 *.swp
 
+# Debug output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
