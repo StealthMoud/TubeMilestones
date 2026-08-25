@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TubeMilestones</string>
+    <string name="notification_channel_milestones">Milestone alerts</string>
+    <string name="notification_channel_milestones_description">Calm alerts for newly detected channel checkpoints</string>
+</resources>
+
