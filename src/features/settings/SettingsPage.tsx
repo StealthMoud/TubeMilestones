@@ -342,7 +342,7 @@ export default function SettingsPage() {
       <Modal
         open={disconnectOpen}
         title="Disconnect YouTube?"
-        description="TubeMilestones will attempt to revoke the active Google token, then delete this channel's saved history, goals and manual values from this browser."
+        description="TubeMilestones will attempt to revoke the active Google token, then delete this channel's saved history, goals and manual values from this browser. This does not delete or change anything on YouTube."
         onClose={() => setDisconnectOpen(false)}
       >
         <div className="modal-actions">

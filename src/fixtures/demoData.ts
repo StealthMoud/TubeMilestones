@@ -13,7 +13,7 @@ import { parseReportingDay, toReportingDay } from '../domain/metrics/dates';
 export type DemoFixtureName =
   'small' | 'growing' | 'large' | 'hidden' | 'no-analytics' | 'new';
 
-const DEMO_NOW = '2026-08-26T12:00:00.000Z';
+const DEMO_NOW = '2026-08-25T18:00:00.000Z';
 const ANALYTICS_THROUGH = '2026-08-24';
 
 interface FixtureDefinition {

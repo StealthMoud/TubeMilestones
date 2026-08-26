@@ -61,14 +61,18 @@ export default function HomePage() {
     precision,
   });
   const movement = recentMovement(data.analyticsDaily.slice(-28));
-  const journeyNodes = definitionsFor(metric)
-    .filter(
-      ({ target }) =>
-        target === evaluation.currentMilestone?.target ||
-        target === evaluation.nextMilestone?.target ||
-        (currentValue !== null && target < currentValue),
-    )
-    .slice(-3);
+  const metricDefinitions = definitionsFor(metric);
+  const nextIndex = metricDefinitions.findIndex(
+    ({ target }) => currentValue !== null && target > currentValue,
+  );
+  const journeyStart = Math.max(
+    0,
+    (nextIndex === -1 ? metricDefinitions.length : nextIndex) - 2,
+  );
+  const journeyNodes =
+    currentValue === null
+      ? []
+      : metricDefinitions.slice(journeyStart, journeyStart + 3);
 
   return (
     <div className="page page--home page-enter">
@@ -164,23 +168,29 @@ export default function HomePage() {
             Open Journey <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </div>
-        <ol className="journey-preview__nodes">
-          {journeyNodes.map((node) => {
-            const achieved = currentValue !== null && node.target <= currentValue;
-            const next = node.target === evaluation.nextMilestone?.target;
-            return (
-              <li
-                key={node.target}
-                className={achieved ? 'is-achieved' : next ? 'is-next' : undefined}
-              >
-                <span className="journey-preview__node" aria-hidden="true" />
-                <small>{achieved ? 'Achieved' : next ? 'Next' : 'Future'}</small>
-                <strong>{formatCompactNumber(node.target)}</strong>
-                <span>{metricLabel(metric)}</span>
-              </li>
-            );
-          })}
-        </ol>
+        {journeyNodes.length > 0 ? (
+          <ol className="journey-preview__nodes">
+            {journeyNodes.map((node) => {
+              const achieved = currentValue !== null && node.target <= currentValue;
+              const next = node.target === evaluation.nextMilestone?.target;
+              return (
+                <li
+                  key={node.target}
+                  className={achieved ? 'is-achieved' : next ? 'is-next' : undefined}
+                >
+                  <span className="journey-preview__node" aria-hidden="true" />
+                  <small>{achieved ? 'Achieved' : next ? 'Next' : 'Future'}</small>
+                  <strong>{formatCompactNumber(node.target)}</strong>
+                  <span>{metricLabel(metric)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <div className="empty-inline">
+            <p>This checkpoint trail is unavailable while the count is hidden.</p>
+          </div>
+        )}
       </section>
     </div>
   );

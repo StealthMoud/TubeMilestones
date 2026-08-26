@@ -80,7 +80,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <header className="app-header">
           <div className="app-header__identity">
-            <BrandMark size={34} />
+            <ChannelAvatar
+              title={data.channel.title}
+              src={data.channel.thumbnailUrl}
+              size="small"
+            />
             <div>
               <strong>TubeMilestones</strong>
               <span className="app-header__channel">{data.channel.title}</span>
