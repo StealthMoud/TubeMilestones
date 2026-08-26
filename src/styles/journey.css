@@ -1,0 +1,380 @@
+.journey-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.journey-trail-panel,
+.ypp-guide {
+  padding: var(--space-5);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--radius-xl);
+  background: var(--tm-surface);
+}
+
+.journey-trail-panel__heading {
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--tm-border);
+}
+
+.journey-trail {
+  padding: var(--space-5) 0 0;
+  margin: 0;
+  list-style: none;
+}
+
+.journey-node {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  min-height: 5.5rem;
+  gap: var(--space-4);
+}
+
+.journey-node__rail {
+  display: grid;
+  grid-template-rows: 2.15rem 1fr;
+  justify-items: center;
+}
+
+.journey-node__rail i {
+  z-index: 1;
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border: 2px solid var(--tm-border-strong);
+  border-radius: 50%;
+  color: var(--tm-text-muted);
+  background: var(--tm-surface);
+  font-style: normal;
+}
+
+.journey-node__rail b {
+  width: 2px;
+  min-height: 3.35rem;
+  background: var(--tm-border-strong);
+}
+
+.journey-node--achieved .journey-node__rail i {
+  color: var(--tm-success);
+  border-color: var(--tm-success);
+  background: var(--tm-success-soft);
+}
+
+.journey-node--achieved .journey-node__rail b {
+  background: color-mix(in srgb, var(--tm-success) 64%, var(--tm-border));
+}
+
+.journey-node--next .journey-node__rail i {
+  color: var(--tm-milestone);
+  border-color: var(--tm-milestone);
+  background: var(--tm-milestone-soft);
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--tm-milestone) 7%, transparent);
+}
+
+.journey-node__body {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  padding-top: 0.2rem;
+}
+
+.journey-node__body > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.journey-node__body strong {
+  font-size: 1.38rem;
+  font-weight: 710;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.journey-node__body span,
+.journey-node__body p {
+  color: var(--tm-text-muted);
+  font-size: 0.76rem;
+}
+
+.journey-node__body p {
+  margin: 0;
+}
+
+.journey-node--next .journey-node__body p {
+  color: var(--tm-milestone);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.journey-node--future {
+  opacity: 0.62;
+}
+
+.journey-precision-note,
+.ypp-guide__note {
+  padding-top: var(--space-4);
+  margin: var(--space-3) 0 0;
+  border-top: 1px solid var(--tm-border);
+  color: var(--tm-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.journey-empty {
+  display: grid;
+  min-height: 18rem;
+  align-content: center;
+  justify-items: start;
+  padding: var(--space-6) 0;
+}
+
+.journey-empty svg {
+  margin-bottom: var(--space-5);
+  color: var(--tm-text-muted);
+}
+
+.journey-empty h3 {
+  margin-bottom: var(--space-2);
+}
+
+.journey-empty p {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--tm-text-secondary);
+  line-height: 1.6;
+}
+
+.custom-goals {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.custom-goals-empty {
+  display: grid;
+  width: 100%;
+  min-height: 12rem;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  border: 1px dashed var(--tm-border-strong);
+  border-radius: var(--radius-xl);
+  color: var(--tm-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.custom-goals-empty svg,
+.custom-goals-empty span {
+  color: var(--tm-text-muted);
+}
+
+.custom-goals-empty span {
+  font-size: 0.8rem;
+}
+
+.custom-goal-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.custom-goal-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--radius-lg);
+  background: var(--tm-surface);
+}
+
+.custom-goal-card__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--tm-primary-strong);
+  font-size: 0.7rem;
+  font-weight: 720;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.custom-goal-card__topline button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--tm-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.custom-goal-card h3,
+.custom-goal-card p {
+  margin: 0;
+}
+
+.custom-goal-card h3 {
+  font-size: 1.15rem;
+  letter-spacing: -0.025em;
+}
+
+.custom-goal-card p,
+.custom-goal-card small {
+  color: var(--tm-text-muted);
+  font-size: 0.78rem;
+}
+
+.ypp-guide {
+  display: grid;
+  gap: var(--space-5);
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      color-mix(in srgb, var(--tm-milestone) 9%, transparent),
+      transparent 18rem
+    ),
+    var(--tm-surface);
+}
+
+.ypp-guide__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ypp-guide__heading h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+.ypp-guide__heading a {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--tm-primary-strong);
+  font-size: 0.75rem;
+  font-weight: 680;
+}
+
+.ypp-guide__intro {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--tm-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.ypp-guide__meters {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.guidance-meter {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.guidance-meter__copy {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.guidance-meter__copy > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.guidance-meter__copy strong {
+  font-size: 0.86rem;
+}
+
+.guidance-meter__copy span {
+  color: var(--tm-text-muted);
+  font-size: 0.7rem;
+  text-align: right;
+}
+
+.guidance-meter__copy > div span {
+  text-align: left;
+}
+
+.guidance-meter__track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--tm-border);
+}
+
+.guidance-meter__track span {
+  display: block;
+  min-width: 2px;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--tm-primary), var(--tm-milestone));
+}
+
+.ypp-guide > small {
+  color: var(--tm-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 640px) {
+  .journey-trail-panel,
+  .ypp-guide {
+    padding: var(--space-6);
+  }
+
+  .custom-goal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .page--journey {
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
+    align-items: start;
+  }
+
+  .page--journey .journey-heading,
+  .page--journey > .segmented-scroll {
+    grid-column: 1 / -1;
+  }
+
+  .page--journey .journey-trail-panel {
+    grid-column: 1;
+    grid-row: 3 / span 2;
+  }
+
+  .page--journey .custom-goals,
+  .page--journey .ypp-guide {
+    grid-column: 2;
+  }
+
+  .custom-goal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 479px) {
+  .journey-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-heading .button {
+    width: 100%;
+  }
+
+  .ypp-guide__heading {
+    display: grid;
+  }
+}

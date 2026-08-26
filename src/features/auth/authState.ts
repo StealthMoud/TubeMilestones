@@ -1,0 +1,13 @@
+export type AuthorizationStatus =
+  | 'UNCONFIGURED'
+  | 'DISCONNECTED'
+  | 'AUTHORIZING'
+  | 'AUTHORIZED'
+  | 'TOKEN_EXPIRED'
+  | 'PERMISSION_DENIED'
+  | 'NO_CHANNEL'
+  | 'SYNCING'
+  | 'READY'
+  | 'NETWORK_ERROR'
+  | 'API_ERROR'
+  | 'QUOTA_ERROR';
