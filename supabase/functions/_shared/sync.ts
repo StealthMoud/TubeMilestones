@@ -17,6 +17,8 @@ export const syncRequestSchema = z.object({
   manual: z.boolean().default(true),
 });
 
+export const INITIAL_DAILY_BACKFILL_DAYS = 400;
+
 export interface SafeSyncResponse {
   kind: 'READY' | 'CHANNEL_SELECTION_REQUIRED';
   selectedChannelId: string | null;
@@ -34,6 +36,15 @@ function recentStart(now: Date, days: number): string {
   const date = new Date(now);
   date.setUTCDate(date.getUTCDate() - (days - 1));
   return toDate(date);
+}
+
+export function initialDailyAnalyticsStart(
+  channelPublishedAt: string,
+  now: Date,
+): string {
+  const publishedDate = channelPublishedAt.slice(0, 10);
+  const horizon = recentStart(now, INITIAL_DAILY_BACKFILL_DAYS);
+  return publishedDate > horizon ? publishedDate : horizon;
 }
 
 function observedToInsert(
@@ -239,7 +250,7 @@ export async function synchronizeUser(
     const endDate = toDate(now);
     const dailyStart =
       (existingDaily?.length ?? 0) === 0
-        ? selected.published_at.slice(0, 10)
+        ? initialDailyAnalyticsStart(selected.published_at, now)
         : recentStart(now, 120);
 
     const [dailyResult, aggregateResult] = await Promise.allSettled([
