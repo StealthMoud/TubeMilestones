@@ -8,58 +8,116 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
 }
 
-test('public landing renders without OAuth and fits the viewport', async ({ page }) => {
+test('public landing explains the unconfigured cloud boundary', async ({ page }) => {
   await page.goto('/');
-
   await expect(
     page.getByRole('heading', {
       name: 'Your YouTube journey, one milestone at a time.',
     }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Connect YouTube' })).toBeDisabled();
   await expect(
-    page.getByText('Google OAuth is not configured for this deployment.'),
+    page.getByRole('button', { name: 'Continue with Google' }),
+  ).toBeDisabled();
+  await expect(page.getByText(/Cloud connection is not configured/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('signed-in unconnected fixture shows the separate YouTube authorization step', async ({
+  page,
+}) => {
+  await page.goto('/#/?demo=unconnected');
+  await expect(
+    page.getByRole('heading', { name: 'Connect your YouTube channel.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Connect YouTube' })).toBeEnabled();
+  await expect(
+    page.getByText(/cannot edit, upload, or delete YouTube content/),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
-test('bottom navigation works and Journey switches metrics', async ({ page }) => {
+test('connected Home is milestone-first', async ({ page }) => {
   await page.goto('/#/?demo=small');
   await expect(page.getByText('DEMO DATA')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '1K' })).toBeVisible();
+  await expect(page.getByText('258 subscribers to go')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recent movement' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
 
-  await page.getByRole('link', { name: 'Journey', exact: true }).click();
+test('Journey uses one differentiated path and switches metrics', async ({ page }) => {
+  await page.goto('/#/journey?demo=growing');
   await expect(
     page.getByRole('heading', { name: 'Your milestone journey.' }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Views' }).click();
-  await expect(page.getByText('48.2K now')).toBeVisible();
+  await expect(page.getByText('1.82M now')).toBeVisible();
+  await expect(page.getByText('Next checkpoint')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
-test('Analytics range selector updates fixture summaries', async ({ page }) => {
+test('28D Analytics prioritizes one value and simple detail rows', async ({ page }) => {
   await page.goto('/#/analytics?demo=small');
-  await expect(
-    page.getByRole('heading', { name: 'Recent channel movement.' }),
-  ).toBeVisible();
-
-  const sevenDays = page.getByRole('button', { name: '7D' });
-  await sevenDays.click();
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/^Last 7 days:/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Views' })).toBeVisible();
+  await expect(page.locator('.analytics-value > span')).toHaveText('28D total');
+  await expect(page.locator('.analytics-details')).toContainText('Net subscribers');
   await expectNoHorizontalOverflow(page);
 });
 
-test('Settings requires confirmation before disconnecting', async ({ page }) => {
-  await page.goto('/#/settings?demo=small');
-  await expect(page.getByRole('heading', { name: 'Settings.' })).toBeVisible();
+test('365D Analytics loads unified mocked archive history', async ({ page }) => {
+  await page.goto('/#/analytics?demo=archive');
+  await page.getByRole('button', { name: '365D' }).click();
+  await expect(page.locator('.analytics-value > span')).toHaveText('365D total');
+  await expect(page.locator('.analytics-chart')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
 
+test('archive failure keeps recent Analytics visible', async ({ page }) => {
+  await page.goto('/#/analytics?demo=archive-partial');
+  await page.getByRole('button', { name: '365D' }).click();
+  await expect(
+    page.getByText(/Older history is temporarily unavailable/),
+  ).toBeVisible();
+  await expect(page.locator('.analytics-value > span')).toHaveText('365D total');
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Settings is grouped and confirms disconnect semantics', async ({ page }) => {
+  await page.goto('/#/settings?demo=small');
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByText('User entered')).toBeVisible();
   await page.getByRole('button', { name: 'Disconnect' }).click();
   const dialog = page.getByRole('dialog', { name: 'Disconnect YouTube?' });
-  await expect(dialog).toBeVisible();
-  await expect(
-    dialog.getByRole('button', { name: 'Disconnect and delete' }),
-  ).toBeVisible();
+  await expect(dialog).toContainText('It does not delete anything from YouTube.');
   await dialog.getByRole('button', { name: 'Keep connected' }).click();
   await expect(dialog).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('reauthorization and typed API errors stay contextual', async ({ page }) => {
+  await page.goto('/#/?demo=reauth');
+  await expect(
+    page.getByText('Reconnect YouTube to refresh your progress.'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Reconnect', exact: true }),
+  ).toBeVisible();
+  await page.goto('/#/?demo=api-error');
+  await page.reload();
+  await expect(
+    page.getByText('YouTube data is temporarily unavailable.'),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: '1K' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('deletion-pending fixture makes unavailable data explicit', async ({ page }) => {
+  await page.goto('/#/?demo=deletion-pending');
+  await expect(
+    page.getByRole('heading', { name: 'Your saved YouTube data is being removed.' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Supabase, Vault, and the encrypted archive/),
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

@@ -33,6 +33,16 @@ export default defineConfig({
       },
     },
     {
+      name: 'mobile-wide-chromium',
+      testMatch: /mobile\.spec\.ts/,
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 430, height: 932 },
+        hasTouch: true,
+        isMobile: true,
+      },
+    },
+    {
       name: 'desktop-chromium',
       testMatch: /desktop\.spec\.ts/,
       use: {
