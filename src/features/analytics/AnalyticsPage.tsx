@@ -20,7 +20,7 @@ const RANGES: Array<{ value: AnalyticsRange; label: string }> = [
   { value: '28D', label: '28D' },
   { value: '90D', label: '90D' },
   { value: '365D', label: '365D' },
-  { value: 'ALL', label: 'All' },
+  { value: 'ALL', label: 'Available' },
 ];
 
 const METRICS: Array<{ value: AnalyticsMetric; label: string }> = [
@@ -173,7 +173,7 @@ export default function AnalyticsPage() {
           <section className="analytics-focus" aria-labelledby="analytics-value-title">
             <div className="analytics-value">
               <span id="analytics-value-title">
-                {rangeLabel === 'All' ? 'All time' : `${rangeLabel} total`}
+                {range === 'ALL' ? 'Available history' : `${rangeLabel} total`}
               </span>
               <strong>{metricValue(summary.total, metric, true)}</strong>
               <p>{comparison}</p>

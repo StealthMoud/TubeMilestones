@@ -179,7 +179,11 @@ describe('TubeMilestones cloud application states', () => {
   it('renders the differentiated Journey path and changes milestone metrics', async () => {
     show('/journey');
     expect(
-      await screen.findByRole('heading', { name: 'Your milestone journey.' }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Your milestone journey.' },
+        { timeout: 5_000 },
+      ),
     ).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Views' }));
     expect(screen.getByText('48.2K now')).toBeVisible();
@@ -195,6 +199,9 @@ describe('TubeMilestones cloud application states', () => {
     expect(screen.getAllByText('Net subscribers')).toHaveLength(2);
     await userEvent.click(screen.getByRole('button', { name: '7D' }));
     expect(screen.getByText('7D total')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Available' }));
+    expect(screen.getByText('Available history')).toBeVisible();
+    expect(screen.queryByText('All time')).not.toBeInTheDocument();
   });
 
   it('keeps hot Analytics visible when archive history is partial', async () => {

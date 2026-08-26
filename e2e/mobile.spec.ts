@@ -22,6 +22,16 @@ test('public landing explains the unconfigured cloud boundary', async ({ page })
   await expectNoHorizontalOverflow(page);
 });
 
+test('privacy page keeps sensitive support out of public issues', async ({ page }) => {
+  await page.goto('/privacy.html');
+  await expect(page.getByRole('heading', { name: 'Privacy policy.' })).toBeVisible();
+  await expect(
+    page.getByText(/private privacy\/support address has not been configured/),
+  ).toBeVisible();
+  await expect(page.getByText(/Do not post tokens, email addresses/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('signed-in unconnected fixture shows the separate YouTube authorization step', async ({
   page,
 }) => {
@@ -61,6 +71,8 @@ test('28D Analytics prioritizes one value and simple detail rows', async ({ page
   await expect(page.getByRole('heading', { name: 'Views' })).toBeVisible();
   await expect(page.locator('.analytics-value > span')).toHaveText('28D total');
   await expect(page.locator('.analytics-details')).toContainText('Net subscribers');
+  await page.getByRole('button', { name: 'Available' }).click();
+  await expect(page.locator('.analytics-value > span')).toHaveText('Available history');
   await expectNoHorizontalOverflow(page);
 });
 

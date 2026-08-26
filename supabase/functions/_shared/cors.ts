@@ -1,7 +1,8 @@
-import { frontendUrl } from './env.ts';
+import { allowedFrontendOrigins } from './env.ts';
 
 const BASE_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+  'Access-Control-Allow-Headers':
+    'authorization, apikey, content-type, x-client-info, x-tubemilestones-automation',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400',
   'Referrer-Policy': 'no-referrer',
@@ -12,8 +13,9 @@ const BASE_HEADERS: Record<string, string> = {
 export function corsHeaders(request: Request): Headers {
   const headers = new Headers(BASE_HEADERS);
   const origin = request.headers.get('Origin');
-  const allowed = frontendUrl().origin;
-  if (origin === allowed) headers.set('Access-Control-Allow-Origin', origin);
+  if (origin && allowedFrontendOrigins().has(origin)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+  }
   return headers;
 }
 

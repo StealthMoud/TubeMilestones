@@ -196,12 +196,21 @@
 
         <section>
           <h2>Contact</h2>
+          <p id="private-contact" hidden>
+            For private privacy, security, or deletion requests:
+            <a id="private-contact-link" href=""></a>.
+          </p>
+          <p id="private-contact-unconfigured">
+            A private privacy/support address has not been configured yet. It must be
+            published before public OAuth release.
+          </p>
           <p>
-            For privacy or deletion concerns, open an issue in the
+            For public bugs, feature requests, or non-sensitive questions, use the
             <a href="https://github.com/StealthMoud/TubeMilestones/issues"
               >TubeMilestones issue tracker</a
-            >. The tracker is public: do not include private channel data, email
-            addresses, tokens, credentials, or archive content.
+            >. The tracker is public. Do not post tokens, email addresses, private
+            Analytics, account information, credentials, or archive content in public
+            GitHub issues.
           </p>
         </section>
       </div>
@@ -211,5 +220,6 @@
       <p>TubeMilestones is an independent application.</p>
       <a href="./terms.html">Terms</a>
     </footer>
+    <script type="module" src="/src/privacy-contact-page.ts"></script>
   </body>
 </html>

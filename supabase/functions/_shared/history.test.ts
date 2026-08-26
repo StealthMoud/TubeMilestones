@@ -29,7 +29,7 @@ describe('hot and cold history merge', () => {
     ]);
   });
 
-  it('calculates inclusive 365-day and all-time starts', () => {
+  it('calculates inclusive 365-day and available-history starts', () => {
     expect(requestedStartDate('365D', '2026-08-26', '2020-01-01')).toBe('2025-08-27');
     expect(requestedStartDate('ALL', '2026-08-26', '2020-01-01')).toBe('2020-01-01');
   });
