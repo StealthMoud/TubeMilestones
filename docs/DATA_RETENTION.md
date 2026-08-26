@@ -14,7 +14,11 @@
 | Deletion request audit        | server-only Postgres  | retained to make outcome visible          |
 
 The 120-day boundary is approximate because only complete calendar months older than the
-cutoff are archived. Maintenance processes at most 12 candidate months per run.
+cutoff are archived. A first daily import requests at most 400 inclusive days (or less
+for a newer channel); later syncs request the rolling 120-day window. This bounds initial
+storage/quota while still providing archive-ready history. Maintenance processes at most
+12 candidate months per run. A future explicit `historical-backfill` workflow may extend
+coverage, but v1 does not automatically fetch the channel's complete daily lifetime.
 
 ## Archive eligibility
 
@@ -26,11 +30,13 @@ dates are safe because hot rows win during reads.
 
 ## Authorization compliance
 
-The daily compliance worker examines connections whose authorization has not been
-verified for 25 days. A successful refresh updates verification time and retains data.
+The daily compliance worker atomically claims the oldest connections whose authorization
+has not been verified for 25 days. It processes batches of 50, at most four batches per
+invocation, throttles a failed retry for 23 hours, and recovers claims older than ten
+minutes. A successful refresh/scope check updates verification time and retains data.
 Transient provider/network failures retry without immediately erasing history. A
 permanent grant failure such as `invalid_grant`, or reaching 30 days without successful
-verification, places the connection on compliance hold and starts a purge request.
+verification, places the connection on compliance hold and queues a purge request.
 
 This job verifies authorization only. There is intentionally no daily global YouTube
 Analytics sync Cron; normal sync is driven by active users to control quota and cost.
@@ -64,8 +70,11 @@ PENDING → RUNNING → COMPLETE
                                   └──> FAILED_FINAL after bounded attempts
 ```
 
-The deletion worker checks up to 25 requests per daily run and treats ten failed attempts
-as final. Operators must investigate `FAILED_FINAL`; the UI and documentation must not
+The deletion worker atomically claims up to 25 oldest requests per daily run. Claiming
+sets `RUNNING`, records a unique owner, and increments attempts exactly once. Final
+updates are accepted only from that owner; another worker skips the active claim. A
+`RUNNING` request older than 15 minutes is recoverable after a crash. Ten failed attempts
+are final. Operators must investigate `FAILED_FINAL`; the UI and documentation must not
 represent those requests as complete.
 
 ## Free-project operational risk

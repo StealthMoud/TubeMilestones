@@ -33,7 +33,11 @@ usable YouTube channel before committing a new connection.
 - Report availability dates needed to present freshness honestly
 
 Daily reports use Google's `startIndex`/`maxResults` pagination and header-based parsing
-so initial history is not silently truncated or coupled to response-column order.
+so initial history is not silently truncated or coupled to response-column order. The
+first daily import is bounded to the later of channel publication or a 400-day inclusive
+window. Subsequent foreground syncs request the rolling 120-day window. The aggregate
+watch-time summary can still query from the channel publication date without writing a
+full lifetime of daily rows.
 
 YouTube may round subscriber counts or hide them. TubeMilestones preserves that state and
 does not invent precision.
@@ -59,15 +63,19 @@ encrypt monthly payloads before writing them to private R2, verify object metada
 download/decrypt/checksum/parse/row counts, mark the manifest `READY`, and only then
 delete the corresponding hot rows.
 
-History queries merge hot and cold rows by date with hot data winning. A cold-storage
-failure returns verified hot data plus a typed partial warning when possible.
+History queries merge hot and cold rows by date with hot data winning. The Available
+range therefore means all history the service currently has, not a guaranteed channel
+lifetime. A cold-storage failure returns verified hot data plus a typed partial warning
+when possible.
 
 ## Retention and compliance
 
 Normal sync is foreground-driven. Cron is limited to authorization/compliance validation
-and deletion retry work. Authorization is revalidated after 25 days; transient failures
-retry while the data is held, and the 30-day boundary or a permanent grant failure starts
-the purge lifecycle. See [Data retention](DATA_RETENTION.md).
+and deletion retry work. Authorization is revalidated after 25 days through bounded,
+oldest-first atomic claims; transient failures retry while the data is held, and the
+30-day boundary or a permanent grant failure queues the purge lifecycle. Deletions also
+use owner-bound atomic claims with stale-worker recovery. See
+[Data retention](DATA_RETENTION.md).
 
 ## Logging and tracking
 

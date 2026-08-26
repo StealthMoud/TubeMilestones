@@ -5,14 +5,15 @@ application identity with YouTube authorization and make consent harder to under
 
 ## Prerequisites
 
-In one Google Cloud project:
+Before public OAuth release, choose an owned production domain, publish a real private
+privacy/support address, and configure the Google OAuth support email. In one Google
+Cloud project:
 
 1. Configure the OAuth consent screen and application name.
-2. Set the application homepage to the deployed TubeMilestones URL.
-3. Set public privacy and terms URLs, for example:
-   `https://stealthmoud.github.io/TubeMilestones/privacy.html` and
-   `https://stealthmoud.github.io/TubeMilestones/terms.html`.
-4. Add the required authorized domains for the GitHub Pages and Supabase hosts.
+2. Set the application homepage to the deployed canonical TubeMilestones HTTPS URL.
+3. Set public privacy and terms URLs on that same owned domain.
+4. Add the owned production domain and any provider domains required by the Google
+   console to the OAuth authorized-domain configuration.
 5. Enable **YouTube Data API v3** and **YouTube Analytics API**.
 6. Add test users while the consent screen is in testing mode.
 
@@ -59,8 +60,11 @@ https://www.googleapis.com/auth/youtube.readonly
 https://www.googleapis.com/auth/yt-analytics.readonly
 ```
 
-It uses authorization-code flow with offline access, explicit consent, PKCE S256, and a
-single-use state value. The client secret and refresh token must never be placed in
+It uses authorization-code flow with `access_type=offline`, `prompt=consent`, PKCE S256,
+and a single-use state value. TubeMilestones deliberately requires Google to return a
+refresh token even during reconnect. If it is missing, reconnect follows Option A: it
+fails safely before channel, Vault, or connection changes, preserving the previous valid
+credential/connection. The client secret and refresh token must never be placed in
 GitHub variables, `.env.local`, the browser, logs, or documentation screenshots.
 
 ## Consent and verification
@@ -83,5 +87,6 @@ the repository cannot claim approval.
 - Consent lists only the two read-only YouTube scopes.
 - A denied or expired attempt returns a typed safe error to the fixed frontend callback.
 - Replaying state fails; an attempt older than ten minutes fails.
+- A reconnect response without a refresh token fails before any persistent mutation.
 - A failed reconnect leaves an existing valid connection and credential intact.
 - Google Account permissions can revoke the grant and the app then requests reconnect.

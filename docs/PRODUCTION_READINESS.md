@@ -12,26 +12,43 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
 - [x] Refresh tokens are referenced through Vault helpers, not browser-visible tables
 - [x] Hot/cold archive uses gzip, per-user HKDF keys, AES-256-GCM, checksum, and manifests
 - [x] Deletion is durable, ordered, idempotent, retryable, and does not depend on revocation
+- [x] Compliance/deletion work uses bounded, oldest-first atomic claims and stale recovery
 - [x] Browser reads exact bigint strings and rejects values beyond safe display precision
 - [x] Unit/component/backend/security and responsive browser tests are present
-- [x] Pages build accepts only URL and publishable-key variables
+- [x] Initial daily Analytics import is bounded to 400 days; later syncs use 120 days
+- [x] Pages build accepts only URL, publishable-key, and public-contact variables
+- [x] Cron application authorization is independent from Supabase server credentials
+- [x] Archive writers select an explicit active version; readers never fall back keys
 - [x] Privacy, retention, security, provider setup, and deployment documents match the code
 
-## Owner actions required before real production use
+## Must complete before public release
 
-- [ ] Create/select the production Supabase project and region
-- [ ] Configure Supabase Auth Google Client A and exact redirect allowlist
-- [ ] Apply migrations and regenerate database types from the live schema
-- [ ] Configure Google Client B, APIs, consent screen, test users, and verification
-- [ ] Create a private bucket and bucket-scoped R2 credential
-- [ ] Set `FRONTEND_URL`, Google, R2, and `ARCHIVE_MASTER_KEY_V1` Edge secrets
-- [ ] Deploy all Edge Functions
-- [ ] Store Cron URL/automation key in Vault and install the two jobs
-- [ ] Perform a real archive write/read/delete/absence test
-- [ ] Perform two-user RLS and callback replay/expiry tests against the live project
-- [ ] Exercise disconnect and account-delete retry behavior with test identities
-- [ ] Add the two GitHub repository variables and confirm Pages Actions source
-- [ ] Complete any required Google OAuth verification before public access
+- [ ] Buy/select an owned production domain and complete the documented cutover
+- [ ] Verify that domain in Google Search Console
+- [ ] Publish the real private privacy/support contact email
+- [ ] Create/select the isolated production Supabase project and region
+- [ ] Create the private production R2 bucket and bucket-scoped credential
+- [ ] Configure Supabase Auth Google Client A and the exact redirect allow-list
+- [ ] Configure separate server-side YouTube Google Client B
+- [ ] Configure OAuth test users while the consent screen remains in testing
+- [ ] Complete Google OAuth verification wherever Google requires it
+- [ ] Generate a dedicated `TUBEMILESTONES_AUTOMATION_SECRET`, independent from
+      Supabase secret/service-role credentials
+- [ ] Generate and back up `ARCHIVE_MASTER_KEY_V1`; set
+      `ARCHIVE_ACTIVE_KEY_VERSION=1`
+- [ ] Configure every documented Edge Function secret, including `FRONTEND_URL` and the
+      explicit `TUBEMILESTONES_ALLOWED_ORIGINS`
+- [ ] Apply migrations, regenerate database types from the live schema, and deploy every
+      Edge Function
+- [ ] Store the project URL, public publishable key, and dedicated automation secret in
+      Cron Vault; install and exercise both jobs
+- [ ] Add the three public GitHub repository variables and confirm Pages Actions source
+- [ ] Pass a live two-user RLS/server-only RPC isolation test
+- [ ] Pass real Google sign-in and YouTube OAuth/reconnect/callback tests
+- [ ] Pass a real initial and repeat YouTube sync
+- [ ] Pass a real disconnect including provider/local cleanup
+- [ ] Pass a real account deletion including retry/readback behavior
+- [ ] Pass a real R2 write/HEAD/read/decrypt/delete/verified-absence round trip
 - [ ] Establish monitoring for paused projects, Cron failures, `FAILED_FINAL` deletion,
       R2 errors, quota, and key rotation
 - [ ] Before significant public use with retained Authorized Data, select a backend tier
@@ -50,8 +67,9 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
 
 ## Known limitations
 
-- Without the two Vite variables, the deployment intentionally renders an unconfigured
-  sign-in state.
+- Without Supabase Vite variables, the deployment intentionally renders an unconfigured
+  sign-in state. Without the contact variable, Privacy clearly reports that private
+  support is not configured and public OAuth release is blocked.
 - Without Google/R2/archive secrets, those Edge operations return typed configuration or
   partial-history errors; no fallback writes data to GitHub or the browser.
 - Free Supabase pausing can delay Cron until the project resumes.

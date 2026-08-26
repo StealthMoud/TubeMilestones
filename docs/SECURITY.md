@@ -14,13 +14,17 @@ hosting is never treated as a secret-bearing runtime.
 | Google YouTube access token      | no       | short-lived use          | function memory only               |
 | Google YouTube refresh token     | no       | yes                      | Supabase Vault reference only      |
 | Google YouTube client secret     | no       | yes                      | Edge secret                        |
-| Supabase secret/service-role key | no       | yes                      | hosted runtime / Cron Vault secret |
+| Supabase secret/service-role key | no       | database administration  | hosted runtime                     |
+| TubeMilestones automation secret | no       | Cron worker auth         | Edge secret + Cron Vault reference |
 | R2 access and secret keys        | no       | yes                      | Edge secrets                       |
 | Archive master key               | no       | yes                      | versioned Edge secret              |
 
 Frontend code rejects unconfigured cloud state and only accepts an HTTPS Supabase URL
 plus current publishable key outside localhost. A storage adapter recursively strips
 `provider_token` and `provider_refresh_token` before Supabase Auth state is persisted.
+Edge CORS accepts only strictly parsed origins from `TUBEMILESTONES_ALLOWED_ORIGINS`,
+always including the canonical `FRONTEND_URL` origin. Wildcards, URL paths, credentials,
+and production localhost entries are rejected.
 
 ## RLS and grants audit
 
@@ -68,14 +72,20 @@ update is not granted.
 User functions extract `Authorization: Bearer …` and call Supabase Auth `getUser` before
 using the elevated client. Resource access is always tied to that verified user ID.
 Compliance and deletion workers have JWT verification disabled only because Cron calls
-them; they compare an `apikey` against the elevated secret in constant time.
+them. The Supabase `apikey` header carries only the public publishable key needed for
+platform routing. TubeMilestones itself compares `X-TubeMilestones-Automation` against
+the independent `TUBEMILESTONES_AUTOMATION_SECRET` in constant time. A Supabase
+secret/service-role key is not accepted as the application automation password.
 
 ## Archive security
 
 R2 is private, bucket-scoped, and server-only. Monthly payloads are gzip-compressed and
 AES-256-GCM encrypted with a per-user HKDF-SHA-256 key and random IV. Object metadata,
 SHA-256, authenticated decryption, JSON shape, and row counts are verified before a
-manifest is trusted. Format and key versions support controlled evolution.
+manifest is trusted. `ARCHIVE_ACTIVE_KEY_VERSION` selects the exact versioned master key
+for new writes. Reads resolve only the version referenced by the manifest/envelope; a
+missing historical key returns a sanitized `ARCHIVE_KEY_UNAVAILABLE` error and never
+falls back. Rotation keeps old keys until no manifest references them.
 
 ## Deletion security
 
@@ -89,9 +99,11 @@ bounded number of times.
 
 Structured logs include correlation/operation/status/error codes only. Tests scan
 frontend source for provider SDKs, secret names, credential-shaped literals, and unsafe
-logging. Production assets must also be searched before release. Dependencies are locked
-through `package-lock.json`, npm audit is expected to remain clean, and CI independently
-checks frontend, Edge entrypoints, migrations, and browsers.
+logging. CI separately scans built HTML, CSS, and JavaScript for backend secret names and
+credential shapes; source maps are disabled in the production bundle. Dependencies are
+locked through `package-lock.json`, npm audit is expected to remain clean, and CI
+independently checks frontend, Edge entrypoints, migrations, pgTAP claim behavior, and
+browsers.
 
 ## Static-host security headers
 

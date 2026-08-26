@@ -81,8 +81,13 @@ Browser ── JWT ──> youtube-sync
 ```
 
 A failed reconnect does not destroy an existing valid connection. `invalid_grant` becomes
-a typed reauthorization state. Unsupported combined Analytics metrics fall back to
-smaller reports and are merged by returned column headers.
+a typed reauthorization state. A reconnect that does not return the required offline
+refresh token fails before any channel, Vault, or connection mutation. Initial daily
+Analytics import starts at the later of the channel publication date or 399 days before
+today, so the inclusive request is at most 400 days; later foreground syncs use the
+rolling 120-day window. The aggregate watch-time query still starts at the channel
+publication date. Unsupported combined Analytics metrics fall back to smaller reports
+and are merged by returned column headers.
 
 ## Supabase hot to R2 cold
 
@@ -104,7 +109,10 @@ delete exactly archived hot rows
 
 The object key is `archive/{user_id}/{channel_id}/YYYY/MM.tmar`. The encrypted
 binary envelope begins with the `TMAR` magic, format version, key version, IV, ciphertext,
-and authentication tag. Manifest states make interrupted uploads recoverable.
+and authentication tag. New writes use `ARCHIVE_ACTIVE_KEY_VERSION` and its exact
+`ARCHIVE_MASTER_KEY_VN`; readers resolve the version recorded in the manifest/envelope
+and never fall back to a different key. Manifest states make interrupted uploads
+recoverable.
 
 ## R2 history to browser
 
@@ -118,7 +126,24 @@ Browser <── unified rows + optional typed partial warning
 ```
 
 R2 credentials and plaintext never reach the browser. 7D/28D/90D normally avoid R2;
-365D and All request cold history only when needed.
+365D and Available request cold history only when needed.
+
+## Scheduled worker claims
+
+Cron sends a public Supabase publishable key only for platform routing and a separate
+high-entropy secret in `X-TubeMilestones-Automation` for TubeMilestones authorization.
+The application secret is never a Supabase secret/service-role key.
+
+The daily compliance worker claims the oldest due connections atomically in batches of
+50, with `FOR UPDATE SKIP LOCKED`, a 23-hour retry throttle, and ten-minute stale-claim
+recovery. One invocation processes at most four batches (200 connections), allowing a
+following invocation to continue without permanently starving older null verification
+timestamps. It performs refresh/scope validation only and queues permanent or 30-day
+failures for the deletion pipeline.
+
+The deletion worker atomically claims up to 25 oldest requests. A claim changes the row
+to `RUNNING` and increments attempts exactly once; completion/failure updates require the
+same claim ID. A `RUNNING` claim older than 15 minutes is reclaimable after a crash.
 
 ## Deletion across providers
 

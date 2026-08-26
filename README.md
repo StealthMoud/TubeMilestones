@@ -19,7 +19,7 @@ encrypted older history lives in a private Cloudflare R2 bucket.
 - One dominant next-checkpoint view for subscribers, views, uploads, and watch time
 - Honest history: pre-existing achievements never receive invented completion dates
 - A differentiated vertical Journey with standard and user-created checkpoints
-- 7D, 28D, and 90D hot Analytics plus transparently merged 365D and all-time history
+- 7D, 28D, and 90D hot Analytics plus transparently merged 365D and available history
 - Hidden and rounded subscriber semantics that match YouTube API precision
 - Clearly labeled, user-entered YouTube Partner Program guidance values
 - System, premium dark, and intentional warm-light appearance modes
@@ -91,11 +91,13 @@ Frontend variables:
 ```dotenv
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
+VITE_PRIVACY_CONTACT_EMAIL=privacy@YOUR_OWNED_DOMAIN
 VITE_ENABLE_DEMO=false
 ```
 
-Only the URL and publishable key belong in a production frontend. Real Google, R2,
-archive, and elevated Supabase credentials are Supabase Edge Function secrets. See
+Only the URL, publishable key, and intentionally public support address belong in a
+production frontend. Real Google, R2, archive, automation, and elevated Supabase
+credentials are Supabase Edge Function secrets. See
 [Supabase setup](docs/SUPABASE_SETUP.md), [Google setup](docs/GOOGLE_OAUTH_SETUP.md),
 and [R2 setup](docs/R2_SETUP.md).
 
@@ -119,16 +121,18 @@ npm run test:e2e        # mobile matrix and desktop browser QA
 npm run backend:lint    # Deno lint for Edge Functions
 npm run backend:check   # Deno typecheck for every Edge entrypoint
 npm run db:lint         # lint a running local Supabase database
+npm run db:test         # run pgTAP claim/concurrency tests locally
+npm run audit:bundle    # scan the built production assets for secret leakage
 npm run format:check    # Prettier verification
 ```
 
 ## Deployment and operations
 
-The Pages workflow builds `main` with only `VITE_SUPABASE_URL` and
-`VITE_SUPABASE_PUBLISHABLE_KEY`, uploads `dist`, and deploys through the
-`github-pages` environment. Backend deployment and provider configuration are deliberate
-owner actions, documented in [Deployment](docs/DEPLOYMENT.md) and
-[Production readiness](docs/PRODUCTION_READINESS.md).
+The Pages workflow builds `main` with only `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_PUBLISHABLE_KEY`, and the public `VITE_PRIVACY_CONTACT_EMAIL`, uploads
+`dist`, and deploys through the `github-pages` environment. Backend deployment and
+provider configuration are deliberate owner actions, documented in
+[Deployment](docs/DEPLOYMENT.md) and [Production readiness](docs/PRODUCTION_READINESS.md).
 
 TubeMilestones is independent and is not affiliated with or endorsed by YouTube or
 Google. YouTube Studio remains authoritative for official data, platform actions, and

@@ -70,7 +70,25 @@ counts before setting its manifest to `READY`. Hot rows are deleted only after t
 
 ## Key rotation
 
-`key_version` is stored in the envelope and manifest. To rotate, add a new Supabase
-secret such as `ARCHIVE_MASTER_KEY_V2`, switch new writes deliberately, re-encrypt old
-objects with full verification, then retire V1 only after no V1 manifests remain. Losing
-an old master key makes corresponding archives unrecoverable.
+R2 archival requires `ARCHIVE_ACTIVE_KEY_VERSION` to be a positive integer in the
+supported range. A new write selects exactly `ARCHIVE_MASTER_KEY_V<active version>`.
+Readers select exactly the version recorded by the manifest/envelope. If that versioned
+secret is missing, the read returns the safe `ARCHIVE_KEY_UNAVAILABLE` error; it never
+falls back to the active key or another version.
+
+Rotate deliberately:
+
+1. Generate a new independent 32-byte key on a trusted workstation.
+2. Set the new Edge secret, for example `ARCHIVE_MASTER_KEY_V2`.
+3. Set `ARCHIVE_ACTIVE_KEY_VERSION=2`.
+4. Deploy all functions that read or write archives.
+5. Perform a non-production archive round trip and verify the new envelope and manifest
+   use version 2.
+6. Keep `ARCHIVE_MASTER_KEY_V1` available while any V1 manifest/object exists.
+7. A later, separately reviewed re-encryption migration may download, authenticate,
+   rewrite, and fully verify old V1 objects; this release does not do so automatically.
+8. Remove V1 only after a complete manifest audit proves that nothing references it and
+   recovery evidence is retained.
+
+Losing an old master key makes its corresponding archives unrecoverable. Changing the
+active version affects only new writes; it does not mutate existing ciphertext.

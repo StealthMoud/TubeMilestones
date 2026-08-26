@@ -58,9 +58,10 @@ from standard milestones. YPP is a separate manual-guidance section.
 
 ### Analytics
 
-Analytics supports 7D, 28D, 90D, 365D, and All. One focus metric and chart lead; simple
-detail rows follow. The backend hides the hot/cold storage split. If old archives are
-temporarily unavailable, recent hot data remains visible with a clear partial warning.
+Analytics supports 7D, 28D, 90D, 365D, and Available. One focus metric and chart lead;
+simple detail rows follow. The backend hides the hot/cold storage split. If old archives
+are temporarily unavailable, recent hot data remains visible with a clear partial
+warning.
 
 ### Settings
 
@@ -76,6 +77,7 @@ retryable lifecycle state rather than pretending an incomplete purge succeeded.
   minutes old.
 - Manual sync has a five-minute server cooldown.
 - A three-minute server lock prevents overlapping syncs.
+- The first daily import is bounded to 400 days; later syncs use approximately 120 days.
 - Common Analytics ranges use approximately 120 hot days in Postgres.
 - Older complete months are read from encrypted R2 archives only when requested.
 
