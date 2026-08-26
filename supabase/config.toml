@@ -1,0 +1,39 @@
+project_id = "tubemilestones"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 10000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = [
+  "http://127.0.0.1:5173/**",
+  "https://stealthmoud.github.io/TubeMilestones/**",
+]
+
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+redirect_uri = ""
+
+[functions.youtube-oauth-callback]
+verify_jwt = false
+
+[functions.compliance-revalidate]
+verify_jwt = false
+
+[functions.deletion-worker]
+verify_jwt = false
