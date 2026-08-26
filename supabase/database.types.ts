@@ -61,6 +61,8 @@ export type Database = {
           last_authorization_verified_at: string | null;
           last_verification_attempt_at: string | null;
           verification_retry_count: number;
+          verification_claim_id: string | null;
+          verification_claimed_at: string | null;
           last_synced_at: string | null;
           last_sync_started_at: string | null;
           last_sync_error_code: string | null;
@@ -78,6 +80,8 @@ export type Database = {
           last_authorization_verified_at?: string | null;
           last_verification_attempt_at?: string | null;
           verification_retry_count?: number;
+          verification_claim_id?: string | null;
+          verification_claimed_at?: string | null;
           last_synced_at?: string | null;
           last_sync_started_at?: string | null;
           last_sync_error_code?: string | null;
@@ -96,6 +100,8 @@ export type Database = {
           last_authorization_verified_at?: string | null;
           last_verification_attempt_at?: string | null;
           verification_retry_count?: number;
+          verification_claim_id?: string | null;
+          verification_claimed_at?: string | null;
           last_synced_at?: string | null;
           last_sync_started_at?: string | null;
           last_sync_error_code?: string | null;
@@ -428,6 +434,7 @@ export type Database = {
           completed_at: string | null;
           last_error: string | null;
           attempts: number;
+          claim_id: string | null;
           updated_at: string;
         },
         {
@@ -441,6 +448,7 @@ export type Database = {
           completed_at?: string | null;
           last_error?: string | null;
           attempts?: number;
+          claim_id?: string | null;
           updated_at?: string;
         },
         {
@@ -450,11 +458,34 @@ export type Database = {
           completed_at?: string | null;
           last_error?: string | null;
           attempts?: number;
+          claim_id?: string | null;
         }
       >;
     };
     Views: { [_ in never]: never };
     Functions: {
+      claim_deletion_requests: {
+        Args: { p_batch_size: number; p_claim_id: string };
+        Returns: {
+          id: string;
+          user_id: string;
+          type: 'YOUTUBE_DISCONNECT' | 'ACCOUNT_DELETE' | 'COMPLIANCE_REVOKED';
+          requested_at: string;
+          attempts: number;
+          claim_id: string;
+        }[];
+      };
+      claim_due_compliance_connections: {
+        Args: { p_batch_size: number; p_claim_id: string };
+        Returns: {
+          user_id: string;
+          status: 'CONNECTED' | 'SYNCING';
+          last_authorization_verified_at: string | null;
+          verification_retry_count: number;
+          granted_scopes: string[];
+          verification_claim_id: string;
+        }[];
+      };
       claim_youtube_sync: {
         Args: { p_user_id: string; p_manual?: boolean };
         Returns: string;

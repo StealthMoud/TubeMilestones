@@ -36,6 +36,15 @@ export interface StoredObject {
   sha256: string | null;
 }
 
+export function isObjectNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const metadata = error as {
+    name?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  return metadata.name === 'NotFound' || metadata.$metadata?.httpStatusCode === 404;
+}
+
 export class R2Store {
   readonly #client: S3Client;
   readonly #bucket: string;
@@ -119,13 +128,7 @@ export class R2Store {
       );
       return true;
     } catch (error) {
-      const metadata = error as {
-        name?: string;
-        $metadata?: { httpStatusCode?: number };
-      };
-      if (metadata.name === 'NotFound' || metadata.$metadata?.httpStatusCode === 404) {
-        return false;
-      }
+      if (isObjectNotFoundError(error)) return false;
       throw new AppError('R2_UNAVAILABLE', { cause: error, retryable: true });
     }
   }

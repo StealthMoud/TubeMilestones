@@ -1,15 +1,50 @@
+import type { Database, TablesUpdate } from '../../database.types.ts';
 import { adminClient, assertAutomationRequest } from '../_shared/auth.ts';
-import { complianceAction, isPermanentGoogleFailure } from '../_shared/compliance.ts';
-import { databasePurgeDependencies, runPurgePipeline } from '../_shared/deletion.ts';
+import {
+  processComplianceClaim,
+  type ComplianceAction,
+  type ComplianceProcessingResult,
+} from '../_shared/compliance.ts';
 import { AppError, asAppError, jsonResponse } from '../_shared/errors.ts';
 import { refreshGoogleAccessToken } from '../_shared/google.ts';
 import { handleRequest } from '../_shared/handler.ts';
+import { processBoundedClaimBatches } from '../_shared/work-queue.ts';
 
-async function createComplianceDeletion(
-  userId: string,
-  admin: ReturnType<typeof adminClient>,
-): Promise<string> {
-  const { data: existing } = await admin
+const BATCH_SIZE = 50;
+const MAX_BATCHES_PER_INVOCATION = 4;
+
+type Admin = ReturnType<typeof adminClient>;
+type ConnectionClaim =
+  Database['public']['Functions']['claim_due_compliance_connections']['Returns'][number];
+
+async function claimDueConnections(admin: Admin): Promise<ConnectionClaim[]> {
+  const claimId = crypto.randomUUID();
+  const result = await admin.rpc('claim_due_compliance_connections', {
+    p_batch_size: BATCH_SIZE,
+    p_claim_id: claimId,
+  });
+  if (result.error) throw new AppError('SUPABASE_ERROR', { cause: result.error });
+  return result.data ?? [];
+}
+
+async function updateOwnedConnection(
+  admin: Admin,
+  connection: ConnectionClaim,
+  values: TablesUpdate<'youtube_connections'>,
+): Promise<boolean> {
+  const result = await admin
+    .from('youtube_connections')
+    .update(values)
+    .eq('user_id', connection.user_id)
+    .eq('verification_claim_id', connection.verification_claim_id)
+    .select('user_id')
+    .maybeSingle();
+  if (result.error) throw new AppError('SUPABASE_ERROR', { cause: result.error });
+  return Boolean(result.data);
+}
+
+async function queueComplianceDeletion(userId: string, admin: Admin): Promise<boolean> {
+  const existing = await admin
     .from('data_deletion_requests')
     .select('id')
     .eq('user_id', userId)
@@ -17,14 +52,88 @@ async function createComplianceDeletion(
     .in('status', ['PENDING', 'RUNNING', 'FAILED_RETRYABLE'])
     .limit(1)
     .maybeSingle();
-  if (existing) return existing.id;
-  const created = await admin
-    .from('data_deletion_requests')
-    .insert({ user_id: userId, type: 'COMPLIANCE_REVOKED', status: 'RUNNING' })
-    .select('id')
-    .single();
+  if (existing.error) throw new AppError('SUPABASE_ERROR', { cause: existing.error });
+  if (existing.data) return true;
+  const created = await admin.from('data_deletion_requests').insert({
+    user_id: userId,
+    type: 'COMPLIANCE_REVOKED',
+    status: 'PENDING',
+  });
   if (created.error) throw new AppError('SUPABASE_ERROR', { cause: created.error });
-  return created.data.id;
+  return true;
+}
+
+function processConnection(
+  admin: Admin,
+  connection: ConnectionClaim,
+  now: Date,
+): Promise<ComplianceProcessingResult> {
+  return processComplianceClaim(
+    {
+      userId: connection.user_id,
+      lastAuthorizationVerifiedAt: connection.last_authorization_verified_at,
+      grantedScopes: connection.granted_scopes,
+    },
+    {
+      async readCredential() {
+        const credential = await admin.rpc('read_youtube_refresh_token', {
+          p_user_id: connection.user_id,
+        });
+        if (credential.error) {
+          throw new AppError('SUPABASE_ERROR', { cause: credential.error });
+        }
+        if (!credential.data) throw new AppError('YOUTUBE_REAUTH_REQUIRED');
+        return credential.data;
+      },
+      refreshCredential: refreshGoogleAccessToken,
+      async storeRotatedCredential(refreshToken) {
+        const rotated = await admin.rpc('store_youtube_refresh_token', {
+          p_user_id: connection.user_id,
+          p_refresh_token: refreshToken,
+        });
+        if (rotated.error) {
+          throw new AppError('SUPABASE_ERROR', { cause: rotated.error });
+        }
+      },
+      markVerified: (tokens) =>
+        updateOwnedConnection(admin, connection, {
+          last_authorization_verified_at: now.toISOString(),
+          last_verification_attempt_at: now.toISOString(),
+          verification_retry_count: 0,
+          granted_scopes: tokens.scopes,
+          last_sync_error_code: null,
+          verification_claim_id: null,
+          verification_claimed_at: null,
+        }),
+      markFailed: (code: string, action: ComplianceAction) =>
+        updateOwnedConnection(admin, connection, {
+          last_verification_attempt_at: now.toISOString(),
+          verification_retry_count: connection.verification_retry_count + 1,
+          last_sync_error_code: code,
+          status: action === 'HOLD_AND_PURGE' ? 'COMPLIANCE_HOLD' : connection.status,
+          verification_claim_id: null,
+          verification_claimed_at: null,
+        }),
+      queueAuthorizedDataPurge: () =>
+        queueComplianceDeletion(connection.user_id, admin),
+      errorCode: (error) => asAppError(error, 'GOOGLE_REFRESH_FAILED').code,
+    },
+    now,
+  );
+}
+
+async function releaseUnexpectedFailure(
+  admin: Admin,
+  connection: ConnectionClaim,
+  now: Date,
+): Promise<void> {
+  await updateOwnedConnection(admin, connection, {
+    last_verification_attempt_at: now.toISOString(),
+    verification_retry_count: connection.verification_retry_count + 1,
+    last_sync_error_code: 'SUPABASE_ERROR',
+    verification_claim_id: null,
+    verification_claimed_at: null,
+  }).catch(() => false);
 }
 
 Deno.serve((request) =>
@@ -32,110 +141,28 @@ Deno.serve((request) =>
     assertAutomationRequest(request);
     const admin = adminClient();
     const now = new Date();
-    const threshold = new Date(now.getTime() - 25 * 24 * 60 * 60 * 1_000).toISOString();
-    const { data: connections, error } = await admin
-      .from('youtube_connections')
-      .select('*')
-      .in('status', ['CONNECTED', 'SYNCING'])
-      .or(
-        `last_authorization_verified_at.is.null,last_authorization_verified_at.lte.${threshold}`,
-      )
-      .limit(100);
-    if (error) throw new AppError('SUPABASE_ERROR', { cause: error });
-
-    let verified = 0;
-    let retryLater = 0;
-    let purged = 0;
-    for (const connection of connections ?? []) {
-      let failureCode: string;
-      try {
-        const credential = await admin.rpc('read_youtube_refresh_token', {
-          p_user_id: connection.user_id,
-        });
-        if (credential.error || !credential.data) {
-          throw new AppError('YOUTUBE_REAUTH_REQUIRED', { cause: credential.error });
+    const processed = await processBoundedClaimBatches(
+      () => claimDueConnections(admin),
+      async (connection) => {
+        try {
+          return await processConnection(admin, connection, now);
+        } catch {
+          await releaseUnexpectedFailure(admin, connection, now);
+          return 'RETRY_LATER' as const;
         }
-        const tokens = await refreshGoogleAccessToken(
-          credential.data,
-          connection.granted_scopes,
-        );
-        if (tokens.refreshToken) {
-          const rotated = await admin.rpc('store_youtube_refresh_token', {
-            p_user_id: connection.user_id,
-            p_refresh_token: tokens.refreshToken,
-          });
-          if (rotated.error)
-            throw new AppError('SUPABASE_ERROR', { cause: rotated.error });
-        }
-        const updated = await admin
-          .from('youtube_connections')
-          .update({
-            last_authorization_verified_at: now.toISOString(),
-            last_verification_attempt_at: now.toISOString(),
-            verification_retry_count: 0,
-            granted_scopes: tokens.scopes,
-          })
-          .eq('user_id', connection.user_id);
-        if (updated.error)
-          throw new AppError('SUPABASE_ERROR', { cause: updated.error });
-        verified += 1;
-        continue;
-      } catch (refreshError) {
-        failureCode = asAppError(refreshError, 'GOOGLE_REFRESH_FAILED').code;
-      }
+      },
+      MAX_BATCHES_PER_INVOCATION,
+    );
 
-      const permanent = isPermanentGoogleFailure(failureCode);
-      const action = permanent
-        ? 'HOLD_AND_PURGE'
-        : complianceAction(connection.last_authorization_verified_at, now, true);
-      const attemptUpdate = await admin
-        .from('youtube_connections')
-        .update({
-          last_verification_attempt_at: now.toISOString(),
-          verification_retry_count: connection.verification_retry_count + 1,
-          last_sync_error_code: failureCode,
-          status: action === 'HOLD_AND_PURGE' ? 'COMPLIANCE_HOLD' : connection.status,
-        })
-        .eq('user_id', connection.user_id);
-      if (attemptUpdate.error) {
-        throw new AppError('SUPABASE_ERROR', { cause: attemptUpdate.error });
-      }
-      if (action !== 'HOLD_AND_PURGE') {
-        retryLater += 1;
-        continue;
-      }
-
-      const deletionId = await createComplianceDeletion(connection.user_id, admin);
-      try {
-        await runPurgePipeline(
-          databasePurgeDependencies(admin, connection.user_id),
-          false,
-        );
-        await admin
-          .from('data_deletion_requests')
-          .update({
-            status: 'COMPLETE',
-            completed_at: now.toISOString(),
-            last_error: null,
-          })
-          .eq('id', deletionId);
-        purged += 1;
-      } catch (purgeError) {
-        await admin
-          .from('data_deletion_requests')
-          .update({
-            status: 'FAILED_RETRYABLE',
-            last_error: asAppError(purgeError, 'SUPABASE_ERROR').code,
-          })
-          .eq('id', deletionId);
-        retryLater += 1;
-      }
-    }
+    const count = (result: ComplianceProcessingResult) =>
+      processed.results.filter((candidate) => candidate === result).length;
     return jsonResponse({
-      checked: connections?.length ?? 0,
-      verified,
-      purged,
-      retryLater,
+      checked: processed.claimed,
+      batches: processed.batches,
+      verified: count('VERIFIED'),
+      purgeQueued: count('PURGE_QUEUED'),
+      retryLater: count('RETRY_LATER'),
+      claimLost: count('CLAIM_LOST'),
     });
   }),
 );

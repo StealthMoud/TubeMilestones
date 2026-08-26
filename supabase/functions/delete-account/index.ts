@@ -24,7 +24,12 @@ Deno.serve((request) =>
     }
     const created = await admin
       .from('data_deletion_requests')
-      .insert({ user_id: user.id, type: 'ACCOUNT_DELETE', status: 'RUNNING' })
+      .insert({
+        user_id: user.id,
+        type: 'ACCOUNT_DELETE',
+        status: 'RUNNING',
+        started_at: new Date().toISOString(),
+      })
       .select('id')
       .single();
     if (created.error) throw new AppError('SUPABASE_ERROR', { cause: created.error });

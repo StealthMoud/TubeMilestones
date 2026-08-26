@@ -11,6 +11,14 @@ const helpers = readFileSync(
   resolve('supabase/migrations/20260826120100_trusted_backend_functions.sql'),
   'utf8',
 );
+const automation = readFileSync(
+  resolve('supabase/migrations/20260826120200_automation_secret.sql'),
+  'utf8',
+);
+const workerClaims = readFileSync(
+  resolve('supabase/migrations/20260826120300_atomic_worker_claims.sql'),
+  'utf8',
+);
 const tables = [
   'profiles',
   'youtube_connections',
@@ -120,5 +128,43 @@ describe('database security migration', () => {
     expect(helpers).toContain('returning attempt.user_id, attempt.code_verifier');
     expect(helpers).toContain('from public.youtube_connections');
     expect(helpers).toContain('where user_id = p_user_id\n  for update;');
+  });
+
+  it('keeps compliance and deletion queue claims atomic and server-only', () => {
+    for (const functionName of [
+      'claim_due_compliance_connections',
+      'claim_deletion_requests',
+    ]) {
+      expect(workerClaims).toContain(
+        `create or replace function public.${functionName}`,
+      );
+      expect(workerClaims).toMatch(
+        new RegExp(
+          `revoke execute on function public\\.${functionName}\\(integer, uuid\\)[\\s\\S]+?from public, anon, authenticated`,
+          'u',
+        ),
+      );
+      expect(workerClaims).toContain(
+        `grant execute on function public.${functionName}(integer, uuid)`,
+      );
+    }
+    expect(workerClaims.match(/for update skip locked/gu)).toHaveLength(2);
+    expect(workerClaims).toContain('last_authorization_verified_at asc nulls first');
+    expect(workerClaims).toContain(
+      "verification_claimed_at <= now() - interval '10 minutes'",
+    );
+    expect(workerClaims).toContain("started_at <= now() - interval '15 minutes'");
+  });
+
+  it('separates public Supabase routing from the private automation header', () => {
+    const cron = automation.slice(
+      automation.indexOf(
+        'create or replace function public.install_tubemilestones_cron_jobs',
+      ),
+    );
+    expect(cron).toContain("'X-TubeMilestones-Automation'");
+    expect(cron).toContain("where name = 'tubemilestones_publishable_key'");
+    expect(cron).toContain("where name = 'tubemilestones_automation_secret'");
+    expect(cron).not.toMatch(/SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY/u);
   });
 });
