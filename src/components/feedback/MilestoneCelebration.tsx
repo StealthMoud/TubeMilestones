@@ -1,10 +1,10 @@
 import { Check } from 'lucide-react';
-import { useApp } from '../../app/AppProvider';
+import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { formatCompactNumber, metricLabel } from '../../domain/metrics/format';
 import { Button } from '../common/Button';
 
 export function MilestoneCelebration() {
-  const { newMilestone, dismissCelebration } = useApp();
+  const { newMilestone, dismissCelebration } = useTubeMilestones();
   if (!newMilestone) return null;
 
   return (

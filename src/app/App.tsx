@@ -1,13 +1,13 @@
 import { HashRouter } from 'react-router-dom';
-import { AppProvider } from './AppProvider';
+import { ApplicationProviders } from './ApplicationProviders';
 import { AppRouter } from './router';
 
 export function App() {
   return (
     <HashRouter>
-      <AppProvider>
+      <ApplicationProviders>
         <AppRouter />
-      </AppProvider>
+      </ApplicationProviders>
     </HashRouter>
   );
 }

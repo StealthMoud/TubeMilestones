@@ -1,5 +1,5 @@
 import { BrandMark } from '../common/BrandMark';
-import type { SyncStage } from '../../services/sync/syncCoordinator';
+import type { SyncStage } from '../../hooks/useTubeMilestones';
 
 const STEPS: Array<{ stage: SyncStage; label: string }> = [
   { stage: 'CONNECTING', label: 'Connecting to YouTube' },

@@ -258,6 +258,24 @@
   font-size: 0.76rem;
 }
 
+.app-header__mobile-freshness {
+  color: var(--tm-text-muted);
+  font-size: 0.66rem;
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-header__actions .icon-button {
+  width: 40px;
+  height: 40px;
+  border-color: transparent;
+  background: transparent;
+}
+
 .app-header__freshness {
   display: none;
 }
@@ -510,6 +528,7 @@
 
 @media (min-width: 768px) {
   .app-header {
+    grid-template-columns: minmax(0, 1fr) auto auto;
     padding-inline: 1.5rem;
   }
 
@@ -518,16 +537,17 @@
     grid-column: 2;
     grid-row: 1;
     gap: 0.15rem;
-    padding-right: 3.8rem;
     color: var(--tm-text-muted);
     font-size: 0.7rem;
     text-align: right;
   }
 
-  .app-header .icon-button {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
+  .app-header__mobile-freshness {
+    display: none;
+  }
+
+  .app-header__actions {
+    grid-column: 3;
   }
 
   .page {
@@ -611,6 +631,7 @@
   }
 
   .app-header {
+    grid-template-columns: minmax(0, 1fr) auto auto;
     min-height: 78px;
     padding-inline: 2rem;
   }
@@ -624,6 +645,14 @@
     color: var(--tm-text);
     font-size: 1rem;
     font-weight: 680;
+  }
+
+  .app-header__actions {
+    grid-column: 3;
+  }
+
+  .app-header__actions .channel-avatar {
+    display: none;
   }
 
   .context-banner {

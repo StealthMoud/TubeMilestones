@@ -1,51 +1,23 @@
-import { ArrowRight, Clock3, Eye, Library, Users } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
-import { useApp } from '../../app/AppProvider';
+import { Link } from 'react-router-dom';
+import { MetricSelector } from '../../components/common/MetricSelector';
+import { MilestoneHero } from '../../components/milestone/MilestoneHero';
 import { recentMovement } from '../../domain/analytics/calculations';
 import { definitionsFor } from '../../domain/milestones/definitions';
 import { evaluateMilestones } from '../../domain/milestones/engine';
-import type { MetricSource, MetricType } from '../../domain/models';
+import { channelMetricValue } from '../../domain/metrics/currentValue';
+import { formatReportingDay } from '../../domain/metrics/dates';
 import {
   formatCompactNumber,
   formatFullNumber,
   metricLabel,
 } from '../../domain/metrics/format';
-import { formatReportingDay } from '../../domain/metrics/dates';
-import { channelMetricValue } from '../../services/sync/syncCoordinator';
-import { MetricSelector } from '../../components/common/MetricSelector';
-import { MilestoneHero } from '../../components/milestone/MilestoneHero';
-
-const QUICK_METRICS: Array<{
-  metric: MetricType;
-  label: string;
-  source: MetricSource;
-  icon: typeof Users;
-}> = [
-  {
-    metric: 'subscribers',
-    label: 'Subscribers',
-    source: 'YOUTUBE_DATA_API',
-    icon: Users,
-  },
-  { metric: 'views', label: 'Channel views', source: 'YOUTUBE_DATA_API', icon: Eye },
-  { metric: 'uploads', label: 'Uploads', source: 'YOUTUBE_DATA_API', icon: Library },
-  {
-    metric: 'watchHours',
-    label: 'Available Analytics watch time',
-    source: 'YOUTUBE_ANALYTICS_API',
-    icon: Clock3,
-  },
-];
-
-const SOURCE_LABELS: Record<MetricSource, string> = {
-  YOUTUBE_DATA_API: 'YouTube Data API',
-  YOUTUBE_ANALYTICS_API: 'YouTube Analytics API',
-  USER_ENTERED: 'Manual value',
-};
+import type { MetricType } from '../../domain/models';
+import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 
 export default function HomePage() {
-  const { data } = useApp();
+  const { data } = useTubeMilestones();
   const [metric, setMetric] = useState<MetricType>('subscribers');
   if (!data) return null;
 
@@ -61,29 +33,19 @@ export default function HomePage() {
     precision,
   });
   const movement = recentMovement(data.analyticsDaily.slice(-28));
-  const metricDefinitions = definitionsFor(metric);
-  const nextIndex = metricDefinitions.findIndex(
+  const definitions = definitionsFor(metric);
+  const nextIndex = definitions.findIndex(
     ({ target }) => currentValue !== null && target > currentValue,
   );
-  const journeyStart = Math.max(
-    0,
-    (nextIndex === -1 ? metricDefinitions.length : nextIndex) - 2,
-  );
-  const journeyNodes =
-    currentValue === null
-      ? []
-      : metricDefinitions.slice(journeyStart, journeyStart + 3);
+  const start = Math.max(0, (nextIndex === -1 ? definitions.length : nextIndex) - 1);
+  const journeyNodes = currentValue === null ? [] : definitions.slice(start, start + 3);
 
   return (
     <div className="page page--home page-enter">
-      <header className="page-heading page-heading--compact">
-        <div>
-          <p className="page-heading__context">Your channel</p>
-          <h1>Here is where you stand.</h1>
-        </div>
-      </header>
-
-      <MetricSelector value={metric} onChange={setMetric} />
+      <div className="home-context">
+        <span>Where you are</span>
+        <strong>{metricLabel(metric)}</strong>
+      </div>
 
       <MilestoneHero
         metric={metric}
@@ -94,31 +56,7 @@ export default function HomePage() {
         precision={precision}
       />
 
-      <section className="quick-metrics" aria-labelledby="quick-metrics-title">
-        <div className="section-heading-inline">
-          <h2 id="quick-metrics-title">Channel position</h2>
-          <span>Current API values</span>
-        </div>
-        <div className="quick-metrics__grid">
-          {QUICK_METRICS.map(({ metric: itemMetric, label, source, icon: Icon }) => {
-            const value = channelMetricValue(
-              data.channel,
-              data.analyticsSummary,
-              itemMetric,
-            );
-            return (
-              <article key={itemMetric} className="metric-card">
-                <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
-                <span>{label}</span>
-                <strong>
-                  {value === null ? 'Unavailable' : formatCompactNumber(value)}
-                </strong>
-                <small>{SOURCE_LABELS[source]}</small>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+      <MetricSelector value={metric} onChange={setMetric} />
 
       <section className="movement-panel" aria-labelledby="movement-title">
         <div className="section-heading-inline">
@@ -133,39 +71,38 @@ export default function HomePage() {
         {data.analyticsDaily.length === 0 ? (
           <div className="empty-inline">
             <p>
-              Analytics isn't available yet. Your channel milestones still work
-              normally.
+              Analytics isn't available yet. Channel milestones still work normally.
             </p>
           </div>
         ) : (
-          <div className="movement-values">
+          <dl className="movement-values">
             <div>
-              <strong>
+              <dd>
                 {movement.netSubscribers >= 0 ? '+' : ''}
                 {formatFullNumber(movement.netSubscribers)}
-              </strong>
-              <span>net subscribers</span>
+              </dd>
+              <dt>Subscribers</dt>
             </div>
             <div>
-              <strong>{formatCompactNumber(movement.views)}</strong>
-              <span>views</span>
+              <dd>{formatCompactNumber(movement.views)}</dd>
+              <dt>Views</dt>
             </div>
             <div>
-              <strong>{formatCompactNumber(movement.watchHours)}</strong>
-              <span>Analytics watch hours</span>
+              <dd>{formatCompactNumber(movement.watchHours)}h</dd>
+              <dt>Watch time</dt>
             </div>
-          </div>
+          </dl>
         )}
       </section>
 
       <section className="journey-preview" aria-labelledby="journey-preview-title">
         <div className="section-heading-inline">
           <div>
-            <p>Progress trail</p>
-            <h2 id="journey-preview-title">Your nearby checkpoints</h2>
+            <p>Your path</p>
+            <h2 id="journey-preview-title">Nearby checkpoints</h2>
           </div>
           <Link to="/journey">
-            Open Journey <ArrowRight size={16} aria-hidden="true" />
+            Open Journey <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
         {journeyNodes.length > 0 ? (
@@ -179,16 +116,15 @@ export default function HomePage() {
                   className={achieved ? 'is-achieved' : next ? 'is-next' : undefined}
                 >
                   <span className="journey-preview__node" aria-hidden="true" />
-                  <small>{achieved ? 'Achieved' : next ? 'Next' : 'Future'}</small>
+                  <small>{achieved ? 'Past' : next ? 'Next' : 'Beyond'}</small>
                   <strong>{formatCompactNumber(node.target)}</strong>
-                  <span>{metricLabel(metric)}</span>
                 </li>
               );
             })}
           </ol>
         ) : (
           <div className="empty-inline">
-            <p>This checkpoint trail is unavailable while the count is hidden.</p>
+            <p>This path is unavailable while the subscriber count is hidden.</p>
           </div>
         )}
       </section>

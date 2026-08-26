@@ -13,6 +13,14 @@ import { parseReportingDay, toReportingDay } from '../domain/metrics/dates';
 export type DemoFixtureName =
   'small' | 'growing' | 'large' | 'hidden' | 'no-analytics' | 'new';
 
+export type DemoScenarioName =
+  | 'unconnected'
+  | 'reauth'
+  | 'deletion-pending'
+  | 'api-error'
+  | 'archive'
+  | 'archive-partial';
+
 const DEMO_NOW = '2026-08-25T18:00:00.000Z';
 const ANALYTICS_THROUGH = '2026-08-24';
 
@@ -158,6 +166,7 @@ export function createDemoDashboard(name: DemoFixtureName = 'small'): DashboardD
   const hidden = fixture.hiddenSubscriberCount ?? false;
   const channel: Channel = {
     channelId,
+    youtubeChannelId: `youtube-${channelId}`,
     title: fixture.title,
     thumbnailUrl: '',
     publishedAt: '2021-02-03T00:00:00Z',
@@ -262,6 +271,22 @@ export function demoFixtureFromLocation(): DemoFixtureName | null {
     : candidate === '1'
       ? 'small'
       : null;
+}
+
+export function demoScenarioFromLocation(): DemoScenarioName | null {
+  const query = window.location.hash.split('?')[1];
+  if (!query) return null;
+  const candidate = new URLSearchParams(query).get('demo');
+  return [
+    'unconnected',
+    'reauth',
+    'deletion-pending',
+    'api-error',
+    'archive',
+    'archive-partial',
+  ].includes(candidate ?? '')
+    ? (candidate as DemoScenarioName)
+    : null;
 }
 
 export function isDemoModeAllowed(): boolean {

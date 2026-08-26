@@ -10,6 +10,7 @@ export type SubscriberPrecision =
 
 export interface Channel {
   channelId: string;
+  youtubeChannelId: string;
   title: string;
   thumbnailUrl: string;
   publishedAt: string;
@@ -73,6 +74,7 @@ export interface MilestoneState {
   detectedAt: string | null;
   detectionType: MilestoneDetectionType;
   celebrationSeen: boolean;
+  customGoalId?: string | null;
 }
 
 export interface CustomGoal {

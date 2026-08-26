@@ -8,7 +8,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { useApp } from '../../app/AppProvider';
+import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { Button } from '../../components/common/Button';
 import { MetricSelector } from '../../components/common/MetricSelector';
 import { Modal } from '../../components/common/Modal';
@@ -26,7 +26,7 @@ import {
   metricLabel,
 } from '../../domain/metrics/format';
 import { formatReportingDay } from '../../domain/metrics/dates';
-import { channelMetricValue } from '../../services/sync/syncCoordinator';
+import { channelMetricValue } from '../../domain/metrics/currentValue';
 
 function formatObservedAt(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -100,7 +100,7 @@ function GuidanceMeter({
 }
 
 export default function JourneyPage() {
-  const { data, addGoal, removeGoal } = useApp();
+  const { data, addGoal, removeGoal } = useTubeMilestones();
   const [metric, setMetric] = useState<MetricType>('subscribers');
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalMetric, setGoalMetric] = useState<MetricType>('subscribers');
@@ -144,6 +144,17 @@ export default function JourneyPage() {
     const parsedTarget = Number(target);
     if (!Number.isFinite(parsedTarget) || parsedTarget <= 0) {
       setFormError('Enter a target greater than zero.');
+      return;
+    }
+    if (
+      parsedTarget > Number.MAX_SAFE_INTEGER ||
+      (goalMetric !== 'watchHours' && !Number.isSafeInteger(parsedTarget))
+    ) {
+      setFormError(
+        goalMetric === 'watchHours'
+          ? 'Enter a smaller target.'
+          : 'This metric needs a whole-number target.',
+      );
       return;
     }
     setSaving(true);
@@ -288,7 +299,7 @@ export default function JourneyPage() {
               );
               const complete = current !== null && current >= goal.target;
               const state = data.milestoneStates.find(
-                ({ id }) => id === `${goal.channelId}:custom:${goal.id}`,
+                ({ customGoalId }) => customGoalId === goal.id,
               );
               return (
                 <article key={goal.id} className="custom-goal-card">

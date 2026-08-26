@@ -1,18 +1,26 @@
 export type TubeMilestonesErrorCode =
-  | 'NETWORK_UNAVAILABLE'
-  | 'TIMEOUT'
-  | 'OAUTH_REJECTED'
-  | 'POPUP_CLOSED'
-  | 'TOKEN_EXPIRED'
-  | 'PERMISSION_DENIED'
-  | 'QUOTA_EXCEEDED'
-  | 'RATE_LIMITED'
-  | 'SERVER_ERROR'
-  | 'API_ERROR'
-  | 'MALFORMED_RESPONSE'
-  | 'NO_CHANNEL'
-  | 'ANALYTICS_EMPTY'
-  | 'ANALYTICS_UNSUPPORTED_COMBINATION';
+  | 'AUTH_REQUIRED'
+  | 'CONFIGURATION_ERROR'
+  | 'INVALID_REQUEST'
+  | 'OAUTH_STATE_INVALID'
+  | 'OAUTH_STATE_EXPIRED'
+  | 'OAUTH_STATE_USED'
+  | 'OAUTH_DENIED'
+  | 'OAUTH_CODE_MISSING'
+  | 'YOUTUBE_NOT_CONNECTED'
+  | 'YOUTUBE_REAUTH_REQUIRED'
+  | 'SYNC_IN_PROGRESS'
+  | 'SYNC_COOLDOWN'
+  | 'GOOGLE_REFRESH_FAILED'
+  | 'YOUTUBE_QUOTA'
+  | 'YOUTUBE_API_ERROR'
+  | 'ANALYTICS_UNAVAILABLE'
+  | 'R2_UNAVAILABLE'
+  | 'ARCHIVE_CORRUPT'
+  | 'SUPABASE_ERROR'
+  | 'DELETION_PENDING'
+  | 'FORBIDDEN'
+  | 'PRECISION_UNSUPPORTED';
 
 export class TubeMilestonesError extends Error {
   readonly code: TubeMilestonesErrorCode;
@@ -35,7 +43,7 @@ export class TubeMilestonesError extends Error {
 export function asTubeMilestonesError(error: unknown): TubeMilestonesError {
   if (error instanceof TubeMilestonesError) return error;
   return new TubeMilestonesError(
-    'API_ERROR',
+    'SUPABASE_ERROR',
     'TubeMilestones could not complete that request.',
     { cause: error },
   );
@@ -44,24 +52,30 @@ export function asTubeMilestonesError(error: unknown): TubeMilestonesError {
 export function userMessageForError(error: unknown): string {
   const typed = asTubeMilestonesError(error);
   const messages: Record<TubeMilestonesErrorCode, string> = {
-    NETWORK_UNAVAILABLE: "You're offline. Showing your last saved progress.",
-    TIMEOUT: 'YouTube took too long to respond. Please try again.',
-    OAUTH_REJECTED: 'YouTube connection was not approved.',
-    POPUP_CLOSED: 'The Google account window was closed before connecting.',
-    TOKEN_EXPIRED: 'Reconnect YouTube to refresh your progress.',
-    PERMISSION_DENIED:
-      'TubeMilestones needs both read-only scopes to load channel milestones and Analytics.',
-    QUOTA_EXCEEDED:
-      'The YouTube API quota is temporarily exhausted. Your saved progress is still available.',
-    RATE_LIMITED: 'YouTube asked TubeMilestones to slow down. Try again shortly.',
-    SERVER_ERROR: 'YouTube is temporarily unavailable. Try again in a moment.',
-    API_ERROR: 'YouTube could not complete the request. Please try again.',
-    MALFORMED_RESPONSE: 'YouTube returned data TubeMilestones could not read safely.',
-    NO_CHANNEL: 'No YouTube channel found for this Google account.',
-    ANALYTICS_EMPTY:
-      "Analytics isn't available yet. Your channel milestones still work normally.",
-    ANALYTICS_UNSUPPORTED_COMBINATION:
-      'YouTube Analytics could not provide this metric combination.',
+    AUTH_REQUIRED: 'Sign in to continue.',
+    CONFIGURATION_ERROR: 'TubeMilestones cloud sync is not configured yet.',
+    INVALID_REQUEST: 'That request could not be processed.',
+    OAUTH_STATE_INVALID: 'This connection request is invalid. Start again.',
+    OAUTH_STATE_EXPIRED: 'This connection request expired. Start again.',
+    OAUTH_STATE_USED: 'This connection request was already used. Start again.',
+    OAUTH_DENIED: 'YouTube access was not approved.',
+    OAUTH_CODE_MISSING: 'Google did not return an authorization code.',
+    YOUTUBE_NOT_CONNECTED: 'Connect YouTube to continue.',
+    YOUTUBE_REAUTH_REQUIRED: 'Reconnect YouTube to refresh your journey.',
+    SYNC_IN_PROGRESS: 'Your channel is already refreshing in another tab.',
+    SYNC_COOLDOWN: 'Your channel refreshed recently. Try again in a few minutes.',
+    GOOGLE_REFRESH_FAILED: 'Google authorization is temporarily unavailable.',
+    YOUTUBE_QUOTA: 'YouTube quota is temporarily unavailable.',
+    YOUTUBE_API_ERROR: 'YouTube data is temporarily unavailable.',
+    ANALYTICS_UNAVAILABLE:
+      "Analytics isn't available right now. Channel milestones still work.",
+    R2_UNAVAILABLE: 'Older history is temporarily unavailable.',
+    ARCHIVE_CORRUPT: 'Older history could not be verified safely.',
+    SUPABASE_ERROR: 'TubeMilestones could not complete the request.',
+    DELETION_PENDING: 'Your saved YouTube data is being deleted.',
+    FORBIDDEN: 'You do not have access to that channel.',
+    PRECISION_UNSUPPORTED:
+      'A channel statistic is too large to chart safely in this browser.',
   };
   return messages[typed.code];
 }

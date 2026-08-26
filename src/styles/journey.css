@@ -11,6 +11,16 @@
   background: var(--tm-surface);
 }
 
+.journey-trail-panel {
+  background:
+    radial-gradient(
+      circle at 90% 18%,
+      color-mix(in srgb, var(--tm-primary) 9%, transparent),
+      transparent 20rem
+    ),
+    var(--tm-surface);
+}
+
 .journey-trail-panel__heading {
   padding-bottom: var(--space-5);
   border-bottom: 1px solid var(--tm-border);
@@ -25,8 +35,19 @@
 .journey-node {
   display: grid;
   grid-template-columns: 2.5rem minmax(0, 1fr);
-  min-height: 5.5rem;
   gap: var(--space-4);
+}
+
+.journey-node--achieved {
+  min-height: 3.75rem;
+}
+
+.journey-node--next {
+  min-height: 8.75rem;
+}
+
+.journey-node--future {
+  min-height: 4.5rem;
 }
 
 .journey-node__rail {
@@ -50,7 +71,7 @@
 
 .journey-node__rail b {
   width: 2px;
-  min-height: 3.35rem;
+  min-height: 100%;
   background: var(--tm-border-strong);
 }
 
@@ -76,6 +97,33 @@
   align-content: start;
   gap: 0.35rem;
   padding-top: 0.2rem;
+}
+
+.journey-node--achieved .journey-node__rail {
+  grid-template-rows: 1.65rem 1fr;
+}
+
+.journey-node--achieved .journey-node__rail i {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.journey-node--achieved .journey-node__body strong {
+  font-size: 1rem;
+}
+
+.journey-node--next .journey-node__body {
+  align-self: start;
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--tm-milestone) 30%, var(--tm-border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--tm-milestone-soft) 55%, var(--tm-surface));
+}
+
+.journey-node--next .journey-node__body strong {
+  color: var(--tm-milestone);
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  line-height: 1;
 }
 
 .journey-node__body > div {

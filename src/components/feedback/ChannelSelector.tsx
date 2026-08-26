@@ -1,10 +1,10 @@
-import { useApp } from '../../app/AppProvider';
+import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { Button } from '../common/Button';
 import { BrandMark } from '../common/BrandMark';
 import { ChannelAvatar } from '../common/ChannelAvatar';
 
 export function ChannelSelector() {
-  const { pendingChannels, chooseChannel } = useApp();
+  const { pendingChannels, chooseChannel } = useTubeMilestones();
   return (
     <main className="channel-selector">
       <BrandMark size={48} title="TubeMilestones" />

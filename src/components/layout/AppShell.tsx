@@ -2,7 +2,7 @@ import { ChartNoAxesCombined, Home, RefreshCw, Route, Settings, X } from 'lucide
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { useApp } from '../../app/AppProvider';
+import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { formatReportingDay } from '../../domain/metrics/dates';
 import { userMessageForError } from '../../services/errors';
 import { BrandMark } from '../common/BrandMark';
@@ -37,14 +37,17 @@ function MainNavigation() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { data, status, warnings, isDemo, isCached, hasToken, refresh, exitDemo } =
-    useApp();
+  const { data, status, warnings, error, isDemo, refresh, connect, exitDemo } =
+    useTubeMilestones();
   if (!data) return null;
 
   const analyticsThrough = data.analyticsSummary?.availableThrough;
   const updated = formatDistanceToNowStrict(new Date(data.channel.updatedAt), {
     addSuffix: true,
   });
+  const needsAuthorization =
+    status === 'REAUTH_REQUIRED' || status === 'COMPLIANCE_HOLD';
+  const contextualError = warnings[0] ?? error;
 
   return (
     <div className="app-frame">
@@ -80,14 +83,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <header className="app-header">
           <div className="app-header__identity">
-            <ChannelAvatar
-              title={data.channel.title}
-              src={data.channel.thumbnailUrl}
-              size="small"
-            />
             <div>
               <strong>TubeMilestones</strong>
               <span className="app-header__channel">{data.channel.title}</span>
+              <span className="app-header__mobile-freshness">Updated {updated}</span>
             </div>
           </div>
           <div className="app-header__freshness">
@@ -96,41 +95,42 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>Analytics through {formatReportingDay(analyticsThrough)}</span>
             ) : null}
           </div>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label={hasToken ? 'Refresh YouTube data' : 'Reconnect to refresh'}
-            title={hasToken ? 'Refresh YouTube data' : 'Reconnect to refresh'}
-            onClick={() => void refresh()}
-            disabled={status === 'SYNCING' || isDemo}
-          >
-            <RefreshCw
-              size={20}
-              strokeWidth={1.8}
-              className={status === 'SYNCING' ? 'is-spinning' : undefined}
+          <div className="app-header__actions">
+            <button
+              className="icon-button"
+              type="button"
+              aria-label={
+                needsAuthorization ? 'Reconnect YouTube' : 'Refresh YouTube data'
+              }
+              title={needsAuthorization ? 'Reconnect YouTube' : 'Refresh YouTube data'}
+              onClick={() => void (needsAuthorization ? connect() : refresh())}
+              disabled={status === 'SYNCING' || isDemo}
+            >
+              <RefreshCw
+                size={19}
+                strokeWidth={1.8}
+                className={status === 'SYNCING' ? 'is-spinning' : undefined}
+              />
+            </button>
+            <ChannelAvatar
+              title={data.channel.title}
+              src={data.channel.thumbnailUrl}
+              size="small"
             />
-          </button>
+          </div>
         </header>
 
-        {isCached && !hasToken ? (
-          <div className="context-banner context-banner--info">
-            <span>Saved progress is ready. Reconnect to refresh from YouTube.</span>
-            <button type="button" onClick={() => void refresh()}>
-              Reconnect
-            </button>
-          </div>
-        ) : null}
-        {status === 'TOKEN_EXPIRED' && data ? (
+        {(status === 'REAUTH_REQUIRED' || status === 'COMPLIANCE_HOLD') && data ? (
           <div className="context-banner context-banner--warning">
             <span>Reconnect YouTube to refresh your progress.</span>
-            <button type="button" onClick={() => void refresh()}>
+            <button type="button" onClick={() => void connect()}>
               Reconnect
             </button>
           </div>
         ) : null}
-        {warnings.length > 0 ? (
+        {contextualError ? (
           <div className="context-banner context-banner--warning" role="status">
-            <span>{userMessageForError(warnings[0])}</span>
+            <span>{userMessageForError(contextualError)}</span>
           </div>
         ) : null}
 
