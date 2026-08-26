@@ -37,6 +37,12 @@ jobs:
       - name: Unit and component tests
         run: npm run test
 
+      - name: Lint Supabase Edge Functions
+        run: npm run backend:lint
+
+      - name: Typecheck Supabase Edge Functions
+        run: npm run backend:check
+
       - name: Production build
         run: npm run build
 
@@ -62,3 +68,32 @@ jobs:
 
       - name: Run Playwright
         run: npm run test:e2e
+
+  database-security:
+    name: Apply and lint Supabase migrations
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start database and apply migrations
+        run: >-
+          npx supabase start
+          --exclude gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Lint database schema
+        run: npm run db:lint
+
+      - name: Stop local database
+        if: always()
+        run: npx supabase stop --no-backup
