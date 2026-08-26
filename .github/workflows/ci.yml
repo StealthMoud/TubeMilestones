@@ -46,6 +46,9 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Audit production bundle secret boundary
+        run: npm run audit:bundle
+
   browser-qa:
     name: Playwright browser QA
     needs: quality
@@ -93,6 +96,9 @@ jobs:
 
       - name: Lint database schema
         run: npm run db:lint
+
+      - name: Test atomic database claims and privileges
+        run: npm run db:test
 
       - name: Stop local database
         if: always()

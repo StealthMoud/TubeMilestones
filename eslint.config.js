@@ -30,7 +30,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['vite.config.ts', 'vitest.config.ts', 'playwright.config.ts'],
+    files: [
+      'vite.config.ts',
+      'vitest.config.ts',
+      'playwright.config.ts',
+      'scripts/**/*.mjs',
+    ],
     languageOptions: {
       globals: globals.node,
     },
