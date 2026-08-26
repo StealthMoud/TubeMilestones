@@ -10,5 +10,8 @@ export default defineConfig({
     css: true,
     restoreMocks: true,
     clearMocks: true,
+    exclude: ['e2e/**', '**/node_modules/**', '**/dist/**'],
+    maxWorkers: 4,
+    testTimeout: 15_000,
   },
 });
