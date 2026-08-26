@@ -7,6 +7,7 @@ test-results/
 # Local configuration
 .env.local
 .env.*.local
+supabase/.temp/
 
 # Editors and operating systems
 .idea/

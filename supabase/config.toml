@@ -29,11 +29,29 @@ client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 redirect_uri = ""
 
+[functions.youtube-oauth-start]
+import_map = "./functions/deno.json"
+
 [functions.youtube-oauth-callback]
 verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.youtube-sync]
+import_map = "./functions/deno.json"
+
+[functions.history-query]
+import_map = "./functions/deno.json"
+
+[functions.disconnect-youtube]
+import_map = "./functions/deno.json"
+
+[functions.delete-account]
+import_map = "./functions/deno.json"
 
 [functions.compliance-revalidate]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.deletion-worker]
 verify_jwt = false
+import_map = "./functions/deno.json"
