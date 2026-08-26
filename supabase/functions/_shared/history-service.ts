@@ -1,4 +1,5 @@
 import type { Tables } from '../../database.types.ts';
+import { archiveMasterKey } from './archive-keyring.ts';
 import type { DatabaseClient } from './auth.ts';
 import {
   decryptArchive,
@@ -7,7 +8,6 @@ import {
   type ArchiveAnalyticsRow,
   type ArchiveSnapshotRow,
 } from './archive.ts';
-import { requiredEnv } from './env.ts';
 import { AppError, type ErrorCode } from './errors.ts';
 import {
   mergeAnalyticsHistory,
@@ -41,10 +41,6 @@ function hotSnapshot(row: Tables<'channel_snapshots'>): ArchiveSnapshotRow {
   };
 }
 
-function archiveKey(version: number): string {
-  return requiredEnv(`ARCHIVE_MASTER_KEY_V${version}`);
-}
-
 export interface UnifiedHistory {
   analytics: ArchiveAnalyticsRow[];
   snapshots: ArchiveSnapshotRow[];
@@ -52,7 +48,10 @@ export interface UnifiedHistory {
   requestedEndDate: string;
   sources: { hotDays: number; archivePeriods: number };
   partial: null | {
-    errorCode: Extract<ErrorCode, 'R2_UNAVAILABLE' | 'ARCHIVE_CORRUPT'>;
+    errorCode: Extract<
+      ErrorCode,
+      'R2_UNAVAILABLE' | 'ARCHIVE_CORRUPT' | 'ARCHIVE_KEY_UNAVAILABLE'
+    >;
   };
 }
 
@@ -151,7 +150,7 @@ export async function loadUnifiedHistory(
         if (!manifest.sha256) throw new AppError('ARCHIVE_CORRUPT');
         const object = await r2.get(manifest.object_key);
         await verifyArchiveChecksum(object.bytes, manifest.sha256);
-        const payload = await decryptArchive(object.bytes, userId, archiveKey);
+        const payload = await decryptArchive(object.bytes, userId, archiveMasterKey);
         verifyArchiveRowCounts(
           payload,
           manifest.analytics_row_count,
@@ -163,8 +162,10 @@ export async function loadUnifiedHistory(
       } catch (error) {
         partial = {
           errorCode:
-            error instanceof AppError && error.code === 'ARCHIVE_CORRUPT'
-              ? 'ARCHIVE_CORRUPT'
+            error instanceof AppError &&
+            (error.code === 'ARCHIVE_CORRUPT' ||
+              error.code === 'ARCHIVE_KEY_UNAVAILABLE')
+              ? error.code
               : 'R2_UNAVAILABLE',
         };
         break;

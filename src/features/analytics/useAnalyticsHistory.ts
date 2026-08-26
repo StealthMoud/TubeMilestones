@@ -26,7 +26,13 @@ const historySchema = z.object({
   requestedEndDate: z.iso.date(),
   sources: z.object({ hotDays: z.number(), archivePeriods: z.number() }),
   partial: z
-    .object({ errorCode: z.enum(['R2_UNAVAILABLE', 'ARCHIVE_CORRUPT']) })
+    .object({
+      errorCode: z.enum([
+        'R2_UNAVAILABLE',
+        'ARCHIVE_CORRUPT',
+        'ARCHIVE_KEY_UNAVAILABLE',
+      ]),
+    })
     .nullable(),
 });
 

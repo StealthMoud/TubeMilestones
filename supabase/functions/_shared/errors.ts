@@ -17,6 +17,7 @@ export type ErrorCode =
   | 'ANALYTICS_UNAVAILABLE'
   | 'R2_UNAVAILABLE'
   | 'ARCHIVE_CORRUPT'
+  | 'ARCHIVE_KEY_UNAVAILABLE'
   | 'SUPABASE_ERROR'
   | 'DELETION_PENDING'
   | 'FORBIDDEN';
@@ -40,6 +41,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   ANALYTICS_UNAVAILABLE: 502,
   R2_UNAVAILABLE: 503,
   ARCHIVE_CORRUPT: 502,
+  ARCHIVE_KEY_UNAVAILABLE: 503,
   SUPABASE_ERROR: 500,
   DELETION_PENDING: 409,
   FORBIDDEN: 403,
@@ -64,6 +66,7 @@ const PUBLIC_MESSAGES: Record<ErrorCode, string> = {
   ANALYTICS_UNAVAILABLE: 'YouTube Analytics is temporarily unavailable.',
   R2_UNAVAILABLE: 'Older history is temporarily unavailable.',
   ARCHIVE_CORRUPT: 'Older history could not be verified.',
+  ARCHIVE_KEY_UNAVAILABLE: 'Older history uses an unavailable encryption key.',
   SUPABASE_ERROR: 'TubeMilestones could not complete the request.',
   DELETION_PENDING: 'Deletion is already in progress.',
   FORBIDDEN: 'You do not have access to this resource.',

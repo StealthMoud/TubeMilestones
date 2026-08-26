@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { eligibleArchivePeriods, manifestNeedsArchive } from './archive-maintenance';
+import {
+  eligibleArchivePeriods,
+  manifestNeedsArchive,
+  MAX_ARCHIVE_MONTHS_PER_RUN,
+} from './archive-maintenance';
 
 describe('archive manifest recovery', () => {
   it('skips verified READY periods and retries incomplete/error states', () => {
@@ -19,5 +23,17 @@ describe('archive manifest recovery', () => {
         new Date('2026-08-26T12:00:00.000Z'),
       ),
     ).toEqual(['2026-01', '2026-02', '2026-03']);
+  });
+
+  it('can archive every eligible month from the bounded 400-day first sync', () => {
+    const now = new Date('2026-08-26T12:00:00.000Z');
+    const days = Array.from({ length: 400 }, (_, index) => {
+      const day = new Date(now);
+      day.setUTCDate(day.getUTCDate() - index);
+      return day.toISOString().slice(0, 10);
+    });
+    expect(eligibleArchivePeriods(days, [], now).length).toBeLessThanOrEqual(
+      MAX_ARCHIVE_MONTHS_PER_RUN,
+    );
   });
 });

@@ -9,6 +9,7 @@ import {
   type ArchivePayload,
 } from './archive';
 import { bytesToBase64 } from './crypto';
+import { AppError } from './errors';
 
 const USER_ID = '86d4f90b-5aa1-43b0-9625-6fe933b730af';
 const MASTER = bytesToBase64(Uint8Array.from({ length: 32 }, (_, index) => index));
@@ -108,5 +109,36 @@ describe('encrypted monthly archives', () => {
       expect.objectContaining({ code: 'ARCHIVE_CORRUPT' }),
     );
     expect(() => verifyArchiveRowCounts(PAYLOAD, 2, 1)).not.toThrow();
+  });
+
+  it('writes the selected key version and resolves that exact key on read', async () => {
+    const encrypted = await encryptArchive(
+      PAYLOAD,
+      USER_ID,
+      OTHER_MASTER,
+      2,
+      new Uint8Array(12).fill(9),
+    );
+    expect(encrypted.keyVersion).toBe(2);
+    const requested: number[] = [];
+    await expect(
+      decryptArchive(encrypted.bytes, USER_ID, (version) => {
+        requested.push(version);
+        if (version !== 2) throw new Error('wrong key version');
+        return OTHER_MASTER;
+      }),
+    ).resolves.toEqual({ ...PAYLOAD, analytics: [...PAYLOAD.analytics].reverse() });
+    expect(requested).toEqual([2]);
+  });
+
+  it('returns a safe error when the exact archived key version is unavailable', async () => {
+    const encrypted = await encryptArchive(PAYLOAD, USER_ID, MASTER, 3);
+    await expect(
+      decryptArchive(encrypted.bytes, USER_ID, (version) => {
+        throw new AppError('ARCHIVE_KEY_UNAVAILABLE', {
+          message: `Missing key ${version}`,
+        });
+      }),
+    ).rejects.toMatchObject({ code: 'ARCHIVE_KEY_UNAVAILABLE' });
   });
 });

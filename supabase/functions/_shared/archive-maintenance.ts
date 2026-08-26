@@ -1,5 +1,6 @@
 import type { Tables } from '../../database.types.ts';
 import type { DatabaseClient } from './auth.ts';
+import { activeArchiveKeyVersion, archiveMasterKey } from './archive-keyring.ts';
 import {
   decryptArchive,
   encryptArchive,
@@ -9,12 +10,11 @@ import {
   type ArchivePayload,
   type ArchiveSnapshotRow,
 } from './archive.ts';
-import { optionalEnv, requiredEnv } from './env.ts';
 import { AppError } from './errors.ts';
 import { archiveObjectKey, isR2Configured, R2Store } from './r2.ts';
 
 export const HOT_RETENTION_DAYS = 120;
-const MAX_MONTHS_PER_RUN = 12;
+export const MAX_ARCHIVE_MONTHS_PER_RUN = 12;
 
 export function manifestNeedsArchive(status: string | null | undefined): boolean {
   return status !== 'READY';
@@ -81,10 +81,6 @@ function archiveSnapshot(row: Tables<'channel_snapshots'>): ArchiveSnapshotRow {
   };
 }
 
-function masterKey(version: number): string {
-  return requiredEnv(`ARCHIVE_MASTER_KEY_V${version}`);
-}
-
 async function markManifestError(
   admin: DatabaseClient,
   manifestId: string | undefined,
@@ -103,9 +99,11 @@ export async function archiveEligibleMonths(
   channelId: string,
   now = new Date(),
 ): Promise<{ archived: string[]; configuration: 'ready' | 'missing' }> {
-  if (!isR2Configured() || !optionalEnv('ARCHIVE_MASTER_KEY_V1')) {
+  if (!isR2Configured()) {
     return { archived: [], configuration: 'missing' };
   }
+  const activeKeyVersion = activeArchiveKeyVersion();
+  const activeMasterKey = archiveMasterKey(activeKeyVersion);
 
   const [analyticsCandidates, snapshotCandidates] = await Promise.all([
     admin
@@ -133,7 +131,7 @@ export async function archiveEligibleMonths(
     (analyticsCandidates.data ?? []).map((row) => row.day),
     (snapshotCandidates.data ?? []).map((row) => row.snapshot_date),
     now,
-  ).slice(0, MAX_MONTHS_PER_RUN);
+  ).slice(0, MAX_ARCHIVE_MONTHS_PER_RUN);
   const r2 = new R2Store();
   const archived: string[] = [];
 
@@ -185,7 +183,12 @@ export async function archiveEligibleMonths(
         analytics: (analytics ?? []).map(archiveAnalytics),
         snapshots: (snapshots ?? []).map(archiveSnapshot),
       };
-      const encrypted = await encryptArchive(payload, userId, masterKey(1), 1);
+      const encrypted = await encryptArchive(
+        payload,
+        userId,
+        activeMasterKey,
+        activeKeyVersion,
+      );
       const objectKey = archiveObjectKey(userId, channelId, period);
       const { data: manifest, error: manifestError } = await admin
         .from('archive_manifests')
@@ -225,7 +228,7 @@ export async function archiveEligibleMonths(
       }
       const downloaded = await r2.get(objectKey);
       await verifyArchiveChecksum(downloaded.bytes, encrypted.sha256);
-      const verified = await decryptArchive(downloaded.bytes, userId, masterKey);
+      const verified = await decryptArchive(downloaded.bytes, userId, archiveMasterKey);
       verifyArchiveRowCounts(
         verified,
         payload.analytics.length,
