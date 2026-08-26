@@ -2,11 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#111116" />
     <meta
       name="description"
-      content="TubeMilestones privacy policy: read-only YouTube data, local browser storage, and memory-only OAuth tokens."
+      content="TubeMilestones privacy policy for application identity, read-only YouTube data, cloud storage, and deletion."
     />
     <title>Privacy | TubeMilestones</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
@@ -29,17 +30,17 @@
         <p>Last updated August 26, 2026</p>
         <h1>Privacy policy.</h1>
         <p>
-          TubeMilestones is a local-first, open-source companion for YouTube creators.
-          This page explains what the application accesses, where data goes, and how you
-          can remove it.
+          This page explains which account and YouTube data TubeMilestones uses, why it
+          is used, where it is stored, and how it is removed.
         </p>
       </header>
 
       <div class="legal-content">
         <section>
-          <h2>Who operates TubeMilestones</h2>
+          <h2>Operator and independence</h2>
           <p>
-            TubeMilestones is an independent application maintained through the
+            TubeMilestones is an independent open-source application maintained through
+            the
             <a href="https://github.com/StealthMoud/TubeMilestones"
               >StealthMoud/TubeMilestones repository</a
             >. It is not affiliated with or endorsed by YouTube or Google.
@@ -47,88 +48,138 @@
         </section>
 
         <section>
-          <h2>Google permissions requested</h2>
-          <p>TubeMilestones requests only these read-only OAuth scopes:</p>
+          <h2>Two separate Google uses</h2>
+          <p>
+            “Continue with Google” uses Supabase Auth to establish TubeMilestones
+            application identity from basic profile, email, and OpenID information. That
+            sign-in alone does not grant YouTube access.
+          </p>
+          <p>“Connect YouTube” separately requests only these read-only scopes:</p>
           <ul>
             <li>
-              <code>youtube.readonly</code> to read channel identity and public channel
-              statistics.
+              <code>https://www.googleapis.com/auth/youtube.readonly</code> for channel
+              identity and statistics.
             </li>
             <li>
-              <code>yt-analytics.readonly</code> to read authorized channel Analytics
-              reports.
+              <code>https://www.googleapis.com/auth/yt-analytics.readonly</code> for the
+              authorized channel's Analytics reports.
             </li>
           </ul>
           <p>
-            TubeMilestones cannot use these permissions to upload, edit, or delete
-            videos, manage comments, or change your YouTube channel.
+            These permissions cannot upload, edit, or delete videos, manage comments, or
+            change your channel.
           </p>
         </section>
 
         <section>
-          <h2>Data accessed and why</h2>
-          <p>The application may access:</p>
+          <h2>Data used</h2>
           <ul>
+            <li>TubeMilestones account ID, email, display name, and profile image;</li>
             <li>
-              channel ID, title, thumbnail, creation date, and uploads playlist ID;
+              channel ID, title, thumbnail, creation date, uploads playlist, and
+              API-reported subscriber, view, and video counts;
             </li>
-            <li>API-reported subscriber, view, and video counts;</li>
             <li>
-              daily views, watch minutes, subscriber gains and losses, and basic
-              viewing-duration metrics;
+              daily views, estimated watch minutes, subscriber gains/losses, average
+              view duration, average view percentage, and reporting availability;
             </li>
-            <li>the dates through which YouTube reports Analytics data.</li>
+            <li>
+              observed snapshots, milestone state, custom goals, theme, selected
+              channel, and user-entered YouTube Partner Program guidance values;
+            </li>
+            <li>
+              authorization, synchronization, archive-manifest, and deletion lifecycle
+              metadata needed to operate and secure the service.
+            </li>
           </ul>
           <p>
-            This data is used only to show current position, milestone progress, locally
-            observed achievement history, and simple Analytics summaries.
+            Data is used to display current progress, honestly observed milestone
+            history, simple Analytics, and the settings you request. It is not used for
+            advertising or an AI/creator score.
           </p>
         </section>
 
         <section class="legal-note">
-          <h2>Where your data is stored</h2>
+          <h2>Storage and processors</h2>
           <p>
-            TubeMilestones has no application backend. Google and YouTube API data is
-            requested directly by the code running in your browser. Channel history,
-            milestones, custom goals, preferences, and manual values are stored in
-            IndexedDB on that browser and device.
+            GitHub Pages serves only the application files. Supabase provides
+            application authentication, sessions, database storage, row-level security,
+            trusted functions, token Vault, and scheduled compliance/deletion work.
+            Approximately 120 recent days are kept as hot database history.
           </p>
           <p>
-            OAuth access tokens are kept only in live JavaScript memory. They are not
-            written to IndexedDB, localStorage, cookies, the repository, or a
-            TubeMilestones server. TubeMilestones does not request or store refresh
-            tokens.
+            Complete older months may be gzip-compressed and encrypted by TubeMilestones
+            before being stored in a private Cloudflare R2 bucket. R2 is accessed only
+            by trusted server functions; the browser does not receive R2 credentials or
+            plaintext archive objects.
           </p>
-        </section>
-
-        <section>
-          <h2>Manual data</h2>
           <p>
-            If you enter qualified public watch hours, Shorts views, or custom goals,
-            those values are stored locally in the same browser IndexedDB database. They
-            are not sent to YouTube or a TubeMilestones service.
+            Google/YouTube supplies the authorized source data. GitHub supplies static
+            hosting and source control but is not used as a user-data database.
           </p>
         </section>
 
         <section>
-          <h2>Retention, reauthorization, and deletion</h2>
+          <h2>Tokens and security</h2>
           <p>
-            Saved data remains on the browser and device until you clear it, disconnect,
-            clear site data in your browser, or the browser removes storage. After 30
-            days without authorization verification, TubeMilestones requires you to
-            reconnect before it displays saved channel data.
+            The YouTube authorization-code exchange and token refresh occur in Supabase
+            Edge Functions. The Google client secret is server-only. A YouTube refresh
+            token is stored through Supabase Vault and is not returned to the browser.
+            Google provider-token fields from application sign-in are stripped before
+            the Supabase session state is persisted by the app.
           </p>
           <p>
-            Disconnect attempts to revoke the active Google access token and deletes the
-            selected channel data, snapshots, Analytics rows, milestone history, goals,
-            and manual values from IndexedDB. Clear Local Data performs the same local
-            deletion without representing that Google permission has been revoked.
+            Database access is restricted by grants and row-level security. Archives use
+            application-level AES-256-GCM encryption with per-user derived keys and
+            integrity verification. No system can promise absolute security; protect
+            your device and Google account and report suspected exposure without posting
+            private data publicly.
+          </p>
+        </section>
+
+        <section>
+          <h2>Manual values and YouTube Partner Program</h2>
+          <p>
+            Optional qualified public watch hours, qualified Shorts views, and custom
+            goals are stored in your TubeMilestones cloud account and are not sent to
+            YouTube. These values are guidance only. TubeMilestones does not determine
+            eligibility; YouTube Studio and current YouTube policies remain
+            authoritative.
+          </p>
+        </section>
+
+        <section>
+          <h2>Retention, authorization, and deletion</h2>
+          <p>
+            Current state and encrypted history are retained while the account and
+            authorization remain active. Authorization is periodically revalidated.
+            Transient failures may be retried, but a permanent revocation or failure to
+            verify by the 30-day limit starts the authorized-data purge lifecycle.
           </p>
           <p>
-            You can also review or revoke access at
+            Disconnect requests best-effort Google revocation, removes the stored Vault
+            credential, deletes and verifies absence of encrypted R2 objects, then
+            removes authorized database rows. It does not delete anything from YouTube.
+            Account deletion also removes the TubeMilestones profile and authentication
+            account. Failures remain recorded for retry instead of being represented as
+            complete.
+          </p>
+          <p>
+            You may also review or revoke access at
             <a href="https://myaccount.google.com/permissions"
               >Google Account permissions</a
             >.
+          </p>
+        </section>
+
+        <section>
+          <h2>Logging and tracking</h2>
+          <p>
+            Operational logs may contain request correlation IDs, operation names,
+            status, and safe error codes. They are designed not to contain OAuth codes,
+            access or refresh tokens, secrets, archive plaintext, provider response
+            bodies, or Analytics values. TubeMilestones does not include third-party
+            advertising or product-tracking scripts.
           </p>
         </section>
 
@@ -144,23 +195,13 @@
         </section>
 
         <section>
-          <h2>Security and device access</h2>
-          <p>
-            Local storage reduces data movement but does not make a device absolutely
-            secure. Anyone with access to your unlocked browser profile may be able to
-            inspect locally stored application data. Keep your device and browser
-            profile protected.
-          </p>
-        </section>
-
-        <section>
           <h2>Contact</h2>
           <p>
-            For privacy questions or deletion concerns, open an issue in the
+            For privacy or deletion concerns, open an issue in the
             <a href="https://github.com/StealthMoud/TubeMilestones/issues"
-              >TubeMilestones GitHub issue tracker</a
-            >. Do not include private channel data, access tokens, or account
-            credentials in a public issue.
+              >TubeMilestones issue tracker</a
+            >. The tracker is public: do not include private channel data, email
+            addresses, tokens, credentials, or archive content.
           </p>
         </section>
       </div>

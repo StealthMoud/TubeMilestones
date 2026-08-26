@@ -1,198 +1,87 @@
-# Google OAuth Setup
+# Google OAuth setup
 
-TubeMilestones is complete without credentials, but a project owner must perform these
-Google Cloud steps before a real YouTube account can connect. The application uses the
-Google Identity Services browser token model and does not use a client secret.
+TubeMilestones intentionally uses two Google OAuth clients. Combining them would blur
+application identity with YouTube authorization and make consent harder to understand.
 
-Console labels can evolve. The current Google Auth Platform groups the relevant settings
-under Branding, Audience, Data Access, and Clients.
+## Prerequisites
 
-## 1. Create or select a Google Cloud project
+In one Google Cloud project:
 
-1. Open [Google Cloud Console](https://console.cloud.google.com/).
-2. Use the project selector to create a project or select the dedicated TubeMilestones
-   project.
-3. Record the project ID for administration. It is not an application credential.
-4. Keep production OAuth configuration in this dedicated project when practical.
+1. Configure the OAuth consent screen and application name.
+2. Set the application homepage to the deployed TubeMilestones URL.
+3. Set public privacy and terms URLs, for example:
+   `https://stealthmoud.github.io/TubeMilestones/privacy.html` and
+   `https://stealthmoud.github.io/TubeMilestones/terms.html`.
+4. Add the required authorized domains for the GitHub Pages and Supabase hosts.
+5. Enable **YouTube Data API v3** and **YouTube Analytics API**.
+6. Add test users while the consent screen is in testing mode.
 
-## 2. Enable the required APIs
+## Client A: Supabase Auth identity
 
-In **APIs & Services > Library**, enable both:
+Create a Web application OAuth client used only by the Supabase Google provider.
 
-1. **YouTube Data API v3**
-2. **YouTube Analytics API**
+Authorized redirect URI template:
 
-Do not enable write-oriented YouTube features for TubeMilestones.
+```text
+https://PROJECT_REF.supabase.co/auth/v1/callback
+```
 
-## 3. Configure OAuth branding
+Enter Client A's ID and secret in Supabase Dashboard → Authentication → Providers →
+Google. Supabase Auth requests identity scopes (`openid email profile`). This client does
+not authorize YouTube APIs and its values are not frontend Vite variables.
 
-Open **Google Auth Platform > Branding** (or **APIs & Services > OAuth consent screen** in
-an older console layout).
+Configure Supabase Auth URL settings with the production site URL and allowed callback
+paths described in [Supabase setup](SUPABASE_SETUP.md).
 
-Configure:
+## Client B: server-side YouTube authorization
 
-- App name: `TubeMilestones`
-- User support email: an email address controlled by the project owner
-- App logo: the final TubeMilestones logo, after branding is ready for public review
-- Application homepage:
-  `https://stealthmoud.github.io/TubeMilestones/`
-- Privacy policy:
-  `https://stealthmoud.github.io/TubeMilestones/privacy.html`
-- Terms of service:
-  `https://stealthmoud.github.io/TubeMilestones/terms.html`
-- Developer contact email: an actively monitored owner address
+Create a second Web application OAuth client for the Edge Function code flow.
 
-The public URLs must already resolve and accurately describe the deployed application
-before submitting for verification.
+Authorized redirect URI template:
 
-## 4. Configure audience and test users
+```text
+https://PROJECT_REF.supabase.co/functions/v1/youtube-oauth-callback
+```
 
-For owner testing before public verification:
+The URI must exactly match `GOOGLE_YOUTUBE_REDIRECT_URI`. Do not add a browser callback
+or GitHub Pages URI to this client. Store the values only as Supabase Edge secrets:
 
-1. Select **External** audience unless the app is intentionally limited to one Google
-   Workspace organization.
-2. Keep publishing status in testing while configuration is incomplete.
-3. Add each Google account that will test TubeMilestones under **Test users**.
+```text
+GOOGLE_YOUTUBE_CLIENT_ID
+GOOGLE_YOUTUBE_CLIENT_SECRET
+GOOGLE_YOUTUBE_REDIRECT_URI
+```
 
-Testing-mode restrictions are controlled by Google. Do not represent test-user access as
-a public production launch.
-
-## 5. Add exactly the required scopes
-
-Under **Data Access**, add:
+The server requests exactly:
 
 ```text
 https://www.googleapis.com/auth/youtube.readonly
 https://www.googleapis.com/auth/yt-analytics.readonly
 ```
 
-These scopes let the app read channel information and authorized Analytics reports. Do
-not add upload, edit, comment, or general Google profile scopes unless the product changes
-and goes through a new privacy and verification review.
+It uses authorization-code flow with offline access, explicit consent, PKCE S256, and a
+single-use state value. The client secret and refresh token must never be placed in
+GitHub variables, `.env.local`, the browser, logs, or documentation screenshots.
 
-## 6. Create the browser OAuth client
+## Consent and verification
 
-1. Open **Google Auth Platform > Clients**.
-2. Select **Create client**.
-3. Choose application type **Web application**.
-4. Name it clearly, for example `TubeMilestones Web`.
-5. Add authorized JavaScript origins from the next section.
-6. Create the client and copy the client ID ending in
-   `.apps.googleusercontent.com`.
+Present the two steps plainly in the product: “Continue with Google” creates or restores
+the TubeMilestones account; “Connect YouTube” requests read-only channel access. The
+consent-screen copy, homepage, privacy policy, terms, authorized domains, and product UI
+must all describe the same use.
 
-TubeMilestones uses a popup token request. It does not need an OAuth client secret or a
-server redirect URI. Never commit or deploy a client secret.
+The YouTube scopes may require Google's verification process before broad production
+availability. While the app is in testing, only configured test users can authorize and
+Google may issue shorter-lived grants. Verification is a provider-console/manual action;
+the repository cannot claim approval.
 
-## 7. Authorized JavaScript origins
+## Validation checklist
 
-Add the origins you actually use.
-
-### Local Vite development
-
-```text
-http://localhost:5173
-```
-
-If you intentionally use the numeric host, add it separately:
-
-```text
-http://127.0.0.1:5173
-```
-
-If Vite runs on another port, add that exact scheme, host, and port.
-
-### Initial GitHub Pages deployment
-
-```text
-https://stealthmoud.github.io
-```
-
-Important: an OAuth origin is only **scheme + host + optional port**. It does not contain
-the repository path. Do not enter:
-
-```text
-https://stealthmoud.github.io/TubeMilestones/
-```
-
-as an origin. The `/TubeMilestones/` path belongs in homepage and privacy URLs, not in the
-authorized JavaScript origin.
-
-### Future custom domain
-
-For the recommended future host:
-
-```text
-https://app.tubemilestones.com
-```
-
-Add that origin before switching production traffic. Keep the GitHub Pages origin only
-while it is still an intentional supported entry point.
-
-## 8. Configure the application client ID
-
-### Local
-
-Create `.env.local`:
-
-```dotenv
-VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-```
-
-Restart Vite after changing the file.
-
-### GitHub Pages
-
-In the GitHub repository:
-
-1. Open **Settings > Secrets and variables > Actions**.
-2. Select the **Variables** tab.
-3. Create a repository variable named `VITE_GOOGLE_CLIENT_ID`.
-4. Paste the web client ID as its value.
-5. Re-run the Pages workflow or push a new commit.
-
-The client ID is configuration, not a password. A repository variable is intentional.
-Do not put a client secret in either variables or secrets for this app.
-
-If the variable is absent, the workflow still builds a valid site. The Connect button is
-disabled and the landing page says OAuth is not configured.
-
-## 9. Test the complete flow
-
-From an authorized origin:
-
-1. Select **Connect YouTube**.
-2. Choose a configured test-user Google account.
-3. Confirm the consent screen names TubeMilestones and shows only the expected read-only
-   scopes.
-4. Verify that the correct channel appears.
-5. Verify Data API metrics and Analytics freshness.
-6. Reload the tab and confirm saved data appears with a reconnect prompt for refresh.
-7. Use Settings to disconnect and verify the app returns to the public landing state.
-8. Confirm the app no longer appears in Google permissions after successful revocation,
-   or revoke it manually from [Google Account permissions](https://myaccount.google.com/permissions).
-
-Do not use live Google OAuth in automated CI.
-
-## 10. Public release and verification
-
-The YouTube scopes used by TubeMilestones may require Google's OAuth verification process
-before broad public access. Google can require:
-
-- a verified domain owned by the project owner;
-- accurate homepage, privacy, and terms pages;
-- consistent app branding and support contact;
-- a demonstration video and explanation of why each scope is required;
-- evidence that requested data is limited to the disclosed product purpose;
-- completion of any additional YouTube API Services review or audit.
-
-Do not publish the OAuth app to production and claim broad availability until Google marks
-the required reviews complete. A domain owned by the project owner, such as
-`app.tubemilestones.com`, will usually create a cleaner long-term branding and domain
-verification boundary than a repository subpath.
-
-Official references:
-
-- [Google Identity Services token model](https://developers.google.com/identity/oauth2/web/guides/use-token-model)
-- [Configure OAuth consent](https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification)
-- [YouTube API Services policies](https://developers.google.com/youtube/terms/developer-policies)
-- [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy)
+- Client A redirects only to Supabase Auth and produces a normal Supabase session.
+- Client B redirects only to `youtube-oauth-callback`.
+- The callback URL, client ID, and client secret all belong to Client B.
+- Consent lists only the two read-only YouTube scopes.
+- A denied or expired attempt returns a typed safe error to the fixed frontend callback.
+- Replaying state fails; an attempt older than ten minutes fails.
+- A failed reconnect leaves an existing valid connection and credential intact.
+- Google Account permissions can revoke the grant and the app then requests reconnect.

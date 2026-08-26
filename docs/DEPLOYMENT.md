@@ -1,104 +1,88 @@
 # Deployment
 
-TubeMilestones is designed for static GitHub Pages hosting. The production build uses
-relative asset URLs and hash routes, so the same artifact works under the repository path
-without rewrite rules.
+Deployment has two independent parts: owner-configured Supabase/R2/Google services and a
+static GitHub Pages presentation build. Publishing Pages does not configure the backend.
 
-## GitHub Pages one-time setup
+## GitHub repository settings
 
-After `.github/workflows/deploy-pages.yml` exists on `main`:
+In Settings → Pages, choose **GitHub Actions** as the publishing source. Add exactly these
+repository Actions variables:
 
-1. Open `https://github.com/StealthMoud/TubeMilestones/settings/pages`.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-3. Open **Settings > Environments > github-pages** and review any deployment protection
-   rules. The workflow targets this environment.
-4. Open **Settings > Actions > General** and ensure GitHub Actions are allowed for the
-   repository.
-5. Allow the first `Deploy GitHub Pages` workflow to complete.
+```text
+VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
 
-The expected project site is:
+Do not add Google secrets, YouTube refresh tokens, R2 keys, archive keys, Supabase secret
+keys, or service-role credentials to repository variables. Do not set
+`VITE_ENABLE_DEMO` in production.
+
+The workflow builds only `dist`, uses project-path-safe relative assets and HashRouter,
+and deploys through the protected `github-pages` environment. Expected URL:
 
 ```text
 https://stealthmoud.github.io/TubeMilestones/
 ```
 
-Selecting a Pages source is a repository-owner setting. The workflow file alone cannot
-truthfully prove the setting was changed.
+## Backend release order
 
-## OAuth repository variable
+1. Complete [Google OAuth setup](GOOGLE_OAUTH_SETUP.md).
+2. Create/configure the Supabase project with [Supabase setup](SUPABASE_SETUP.md).
+3. Create the private bucket and secrets with [R2 setup](R2_SETUP.md).
+4. Apply migrations and inspect RLS/grants.
+5. Deploy Edge Functions and set secrets.
+6. Install only compliance and deletion Cron jobs.
+7. Test OAuth, initial sync, archive round trip, disconnect, and account deletion in a
+   non-production account.
+8. Add the two frontend variables and push `main`.
 
-The deployment workflow passes the repository variable into Vite:
+## Pre-push gate
 
-```yaml
-env:
-  VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+```bash
+npm ci
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test
+npm run backend:lint
+npm run backend:check
+npm run test:e2e
+npm run build
 ```
 
-Create it at **Settings > Secrets and variables > Actions > Variables > New repository
-variable** with name `VITE_GOOGLE_CLIENT_ID`.
+With Docker running, also apply and lint the local database:
 
-The value must be the Google OAuth **Web application client ID**. It is intentionally a
-repository variable because browser client IDs are public identifiers. Never add a client
-secret to a Vite build.
-
-If the variable does not exist, deployment still succeeds. The deployed landing page
-shows an explicit unconfigured message and does not fake a connection.
-
-## Workflow
-
-Pushes to `main` and manual dispatch trigger:
-
-```text
-checkout
-  -> Node 24
-  -> npm ci
-  -> lint, typecheck, tests, build
-  -> upload dist Pages artifact
-  -> deploy through github-pages environment
+```bash
+npx supabase start
+npm run db:lint
+npx supabase stop --no-backup
 ```
 
-Only `dist` is uploaded. `node_modules` and local environment files are never deployed.
-The generated `dist` directory is ignored and not committed.
+CI repeats these responsibilities, with a minimal database service for migrations.
 
-The deployment job uses the required `pages: write` and `id-token: write` permissions.
+## Post-deploy verification
 
-## Verify a deployment
+- Pages workflow and CI are green for the exact commit.
+- `/`, `/#/journey`, `/#/analytics`, `/#/settings`, `/privacy.html`, and `/terms.html`
+  load at the project path without asset errors.
+- The production bundle contains only the two public frontend configuration values.
+- Google login returns to the Pages project path.
+- YouTube start URL has `accounts.google.com` origin and the exact two read-only scopes.
+- OAuth callback, sync, 365D history, disconnect, and deletion produce sanitized logs.
+- A second test user cannot read the first user's rows.
+- R2 remains private and an archive round trip passes before hot rows are removed.
+- The live site does not expose demo mode.
 
-1. Inspect the workflow conclusion in the Actions tab.
-2. Open the environment URL emitted by the deploy job.
-3. Verify the landing page, privacy page, and terms page.
-4. Confirm route links use `#/journey`, `#/analytics`, and `#/settings` after connection.
-5. Hard-refresh the project URL and a static legal URL.
-6. Check that production does not show Demo Data.
-7. If the repository variable exists, test OAuth only with an allowed origin and Google
-   test user.
+## Rollback
 
-## Custom domain later
+Pages can redeploy a previously known-good source commit without changing user data.
+Database rollback must be additive and deliberate; do not reverse destructive migrations
+against production. Edge Functions may be redeployed independently if their schema
+contract remains compatible. Never delete R2 objects or hot rows as a rollback shortcut.
 
-Do not purchase a domain as part of the application build. When the owner chooses a
-domain, the recommended application host is:
+## Custom domain and headers
 
-```text
-app.tubemilestones.com
-```
-
-High-level migration:
-
-1. Verify the root domain in the GitHub account to reduce takeover risk.
-2. In the DNS provider, add a `CNAME` record for `app` pointing to
-   `stealthmoud.github.io`.
-3. In repository **Settings > Pages**, enter `app.tubemilestones.com` as the custom domain.
-4. Wait for GitHub's DNS check, then enable **Enforce HTTPS**.
-5. Add `https://app.tubemilestones.com` to the OAuth client's authorized JavaScript
-   origins.
-6. Update Google OAuth homepage, privacy, and terms URLs to the custom domain.
-7. Update repository documentation and any canonical links.
-8. Retest connect, refresh, disconnect, and legal pages from the custom domain.
-
-Vite's relative `base` and `HashRouter` do not need a code change for the new host.
-
-Official references:
-
-- [Using custom workflows with GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
-- [Configuring a Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
-- [Managing a custom domain for Pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+A future custom domain must be added consistently to Supabase Auth redirects, the Google
+consent screen, Client B callback policy where applicable, `FRONTEND_URL`, and legal
+links. GitHub Pages cannot set arbitrary response security headers; use a controlled CDN
+in front if strict headers are required, then verify actual responses.

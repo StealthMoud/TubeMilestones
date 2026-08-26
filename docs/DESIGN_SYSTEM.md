@@ -1,86 +1,74 @@
-# TubeMilestones Design System
+# Design system
 
-## Direction
-
-TubeMilestones should feel premium, quiet, focused, and personal. It is neither a generic
-admin dashboard nor a game map. The checkpoint path is the recurring visual metaphor.
-
-Design calibration:
-
-- density: 6/10;
-- energy: 4/10;
-- warmth: 5/10.
-
-## Palette
-
-The source of truth is `src/styles/tokens.css`.
-
-| Role           | Dark      | Light     | Use                     |
-| -------------- | --------- | --------- | ----------------------- |
-| Background     | `#111116` | `#f5f4f8` | App canvas              |
-| Surface        | `#1a1a21` | `#fbfafc` | Panels                  |
-| Raised surface | `#22222b` | `#fdfcfe` | Hero and modal          |
-| Primary        | `#9488e9` | `#695cc6` | Path and selected state |
-| Primary strong | `#b8aff4` | `#5447ad` | Text and CTA emphasis   |
-| Secondary      | `#69b6c6` | `#287d8d` | Focus ring              |
-| Milestone      | `#d2b46f` | `#916d26` | Next checkpoint         |
-| Success        | `#75bd96` | `#367b57` | Achieved checkpoint     |
-
-Semantic colors always appear with text, icons, or shape differences. Color is not the
-only indicator of state.
+TubeMilestones should feel like a quiet personal progression instrument: precise,
+editorial, and a little celebratory. It must not look like an admin dashboard or a stack
+of interchangeable SaaS cards.
 
 ## Typography
 
-The app uses a system-first variable sans stack for privacy, performance, and familiar
-mobile rendering. Display headings use tight tracking and a measured scale. Metric values
-use tabular numerals. Uppercase is reserved for compact context labels, never paragraphs.
+Inter Variable is bundled with the frontend. Large display text uses compact tracking
+and strong weight; labels use restrained uppercase treatment; body copy stays plain and
+readable. Numeric values use tabular numerals where comparison matters.
 
-## Spacing and shape
+## Color
 
-- Spacing follows a 4 px base scale exposed as `--space-*` tokens.
-- Interactive controls are at least 44 px high; primary actions are 48 px.
-- Radii range from 8 px for compact controls to 24 px for signature panels.
-- Cards use borders and subtle surface changes before shadows.
-- Pills are reserved for selectors, compact freshness, or trust metadata.
+Dark mode is primary:
 
-## Layout
+| Token     | Value          | Use                            |
+| --------- | -------------- | ------------------------------ |
+| Canvas    | `#0B0B0F`      | page background                |
+| Surface 1 | `#111116`      | navigation and grouped rows    |
+| Surface 2 | `#17171D`      | raised content                 |
+| Violet    | `#A79BFF`      | active progress and focus      |
+| Gold      | `#D8BB6A`      | next milestone and celebration |
+| Green     | semantic token | achieved checkpoints           |
 
-Mobile uses a compact app header and fixed four-item bottom navigation with safe-area
-insets. Desktop uses a persistent sidebar and a bounded 74 rem content canvas. Multi-column
-layouts are composed separately at 1024 px rather than stretching phone cards.
+Light mode is independently tuned with warm neutral surfaces and dark ink. It is not a
+mechanical inversion. Semantic achievement, next, warning, and danger states retain
+their meaning in both modes.
 
-## Signature components
+## Shape and depth
 
-### Checkpoint path
+- Rounded forms are reserved for the milestone hero, progress trail, grouped settings,
+  and controls.
+- Dividers and tonal changes do most of the grouping work.
+- Shadows are soft and sparse; borders remain low contrast.
+- Cards are not the default container. Connected information shares a surface.
 
-The brand mark, Home hero, Journey trail, and public preview share a path-and-node
-language. Achieved nodes use a check and success treatment. The next node uses a flag and
-gold treatment. Future nodes are outlined and subdued.
+## Screen hierarchy
 
-### Analytics chart
-
-Recharts provides geometry only. Product tokens control axes, grid, area fill, tooltip,
-spacing, and text. The chart is `aria-hidden`; visible semantic text communicates total,
-peak, comparison, and freshness.
-
-### Destructive dialog
-
-Dialogs use an overlay, bounded surface, explicit consequence text, a quiet cancellation
-action, and a danger-styled confirmation. Escape and backdrop close the dialog.
+Home has one focal milestone. Journey has one vertical spine. Analytics has one leading
+number and chart. Settings uses native-feeling grouped rows. The mobile header keeps the
+channel identity left and refresh/avatar actions right; the bottom navigation stays
+visually quiet.
 
 ## Motion
 
-- Interaction transitions: 150 to 250 ms.
-- Page and modal entries: 250 to 500 ms.
-- Easing: ease-out or `cubic-bezier(0.16, 1, 0.3, 1)` for purposeful settling.
-- Motion reinforces hierarchy; it does not loop for decoration.
-- `prefers-reduced-motion: reduce` collapses animations and transitions globally.
+Entrance motion is short, low amplitude, and hierarchy-aware. Celebration is restrained
+and only shown for newly observed unread crossings. `prefers-reduced-motion` removes
+decorative transitions. There is no perpetual ambient animation.
 
-## Accessibility
+## Interaction
 
-- WCAG-oriented contrast in both themes.
-- Visible focus ring using the secondary cyan token.
-- Semantic headings, lists, descriptions, labels, and dialogs.
-- Screen-reader text for milestone progress and Analytics summaries.
-- Truncation uses visible titles where identifiers may overflow.
-- Safe-area padding protects mobile browser and device chrome.
+- Minimum touch target: approximately 44 CSS pixels where layout permits
+- Visible keyboard focus uses the violet focus token and sufficient offset
+- Selected tabs use text, shape, and `aria-pressed`/radio state—not color alone
+- Destructive actions require a plain-language confirmation dialog
+- Loading keeps layout stable with shaped skeletons or contextual status text
+
+## Responsive composition
+
+Mobile widths use full-bleed page rhythm with safe-area-aware navigation. Metric chips
+may horizontally scroll with a visible continuation cue; the document itself must never
+overflow. At desktop width the sidebar anchors navigation while the content retains a
+focused reading measure instead of expanding into a dashboard grid.
+
+## Visual QA checklist
+
+- The next milestone is unquestionably the Home focal point.
+- Journey reads as a unique path, not repeated status cards.
+- Analytics can be understood in one scan.
+- Light mode feels deliberately designed.
+- Copy does not overwhelm 390px layouts.
+- Navigation and secondary actions do not compete with the content.
+- Focus, contrast, and state meaning survive keyboard and reduced-motion use.
