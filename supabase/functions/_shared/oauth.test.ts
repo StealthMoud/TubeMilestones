@@ -82,4 +82,17 @@ describe('server OAuth security primitives', () => {
     });
     expect(() => assertOfflineRefreshToken(tokens)).toThrow(AppError);
   });
+
+  it('fails reconnect before mutation when Google omits a new refresh token', () => {
+    const existingCredential = 'existing-refresh-credential-remains-valid';
+    const tokens = parseGoogleTokenResponse({
+      access_token: 'access-token-value-long-enough',
+      expires_in: 3600,
+      scope: REQUIRED_YOUTUBE_SCOPES.join(' '),
+    });
+    expect(() => assertOfflineRefreshToken(tokens)).toThrow(
+      expect.objectContaining({ code: 'YOUTUBE_REAUTH_REQUIRED' }),
+    );
+    expect(existingCredential).toBe('existing-refresh-credential-remains-valid');
+  });
 });

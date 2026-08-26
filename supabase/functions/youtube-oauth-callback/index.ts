@@ -3,7 +3,7 @@ import { frontendUrl } from '../_shared/env.ts';
 import { AppError, asAppError } from '../_shared/errors.ts';
 import { exchangeAuthorizationCode } from '../_shared/google.ts';
 import { logEvent } from '../_shared/logging.ts';
-import { parseOAuthCallback } from '../_shared/oauth.ts';
+import { assertOfflineRefreshToken, parseOAuthCallback } from '../_shared/oauth.ts';
 import { sha256Hex } from '../_shared/crypto.ts';
 import { fetchOwnedChannels } from '../_shared/youtube.ts';
 
@@ -42,6 +42,7 @@ Deno.serve(async (request) => {
       callback.code,
       attempt.code_verifier,
     );
+    const newRefreshToken = assertOfflineRefreshToken(tokens);
     const channels = await fetchOwnedChannels(tokens.accessToken);
     if (channels.length === 0) throw new AppError('YOUTUBE_API_ERROR');
     const [existingConnectionResult, existingCredentialResult] = await Promise.all([
@@ -61,7 +62,7 @@ Deno.serve(async (request) => {
     const existingRefreshToken = existingCredentialResult.data;
     const vaultResult = await admin.rpc('store_youtube_refresh_token', {
       p_user_id: attempt.user_id,
-      p_refresh_token: tokens.refreshToken ?? '',
+      p_refresh_token: newRefreshToken,
     });
     if (vaultResult.error)
       throw new AppError('SUPABASE_ERROR', { cause: vaultResult.error });

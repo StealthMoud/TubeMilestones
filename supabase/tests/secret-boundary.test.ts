@@ -29,6 +29,8 @@ describe('browser and logging secret boundaries', () => {
       'SUPABASE_SERVICE_ROLE_KEY',
       'SUPABASE_SECRET_KEY',
       'R2_SECRET_ACCESS_KEY',
+      'ARCHIVE_MASTER_KEY',
+      'TUBEMILESTONES_AUTOMATION_SECRET',
       '@aws-sdk/client-s3',
       'dexie',
     ]) {
@@ -48,6 +50,29 @@ describe('browser and logging secret boundaries', () => {
     const serialized = String(consoleSpy.mock.calls[0]?.[0]);
     expect(serialized).toContain('YOUTUBE_API_ERROR');
     expect(serialized).not.toMatch(/access[_-]?token|refresh[_-]?token|authorization/i);
+  });
+
+  it('uses constant-time dedicated automation authentication', () => {
+    const auth = readFileSync(resolve('supabase/functions/_shared/auth.ts'), 'utf8');
+    const assertion = auth.slice(
+      auth.indexOf('export function assertAutomationRequest'),
+    );
+    expect(assertion).toContain("requiredEnv('TUBEMILESTONES_AUTOMATION_SECRET')");
+    expect(assertion).toContain('constantTimeEqual(provided, expected)');
+    expect(assertion).not.toContain('secretKey()');
+    expect(assertion).not.toContain("request.headers.get('apikey')");
+  });
+
+  it('rejects empty reconnect credentials before Vault mutation', () => {
+    const callback = readFileSync(
+      resolve('supabase/functions/youtube-oauth-callback/index.ts'),
+      'utf8',
+    );
+    expect(callback).toContain(
+      'const newRefreshToken = assertOfflineRefreshToken(tokens)',
+    );
+    expect(callback).toContain('p_refresh_token: newRefreshToken');
+    expect(callback).not.toContain("tokens.refreshToken ?? ''");
   });
 
   it('never returns Google token fields from public Edge Function modules', () => {

@@ -6,6 +6,8 @@ import { AppError } from './errors.ts';
 
 export type DatabaseClient = SupabaseClient<Database>;
 
+export const AUTOMATION_HEADER_NAME = 'X-TubeMilestones-Automation';
+
 function supabaseUrl(): string {
   return requiredEnv('SUPABASE_URL');
 }
@@ -55,8 +57,14 @@ export async function authenticatedUser(request: Request): Promise<{
 }
 
 export function assertAutomationRequest(request: Request): void {
-  const provided = request.headers.get('apikey') ?? '';
-  if (!provided || !constantTimeEqual(provided, secretKey())) {
+  const provided = request.headers.get(AUTOMATION_HEADER_NAME) ?? '';
+  const expected = requiredEnv('TUBEMILESTONES_AUTOMATION_SECRET');
+  if (expected.length < 32) {
+    throw new AppError('CONFIGURATION_ERROR', {
+      message: 'The TubeMilestones automation secret is not sufficiently long.',
+    });
+  }
+  if (!provided || !constantTimeEqual(provided, expected)) {
     throw new AppError('AUTH_REQUIRED');
   }
 }
