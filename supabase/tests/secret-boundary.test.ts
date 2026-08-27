@@ -63,16 +63,29 @@ describe('browser and logging secret boundaries', () => {
     expect(assertion).not.toContain("request.headers.get('apikey')");
   });
 
-  it('rejects empty reconnect credentials before Vault mutation', () => {
+  it('requires new offline credentials only for ADD and keeps reuse connection-scoped', () => {
+    const google = readFileSync(
+      resolve('supabase/functions/_shared/google.ts'),
+      'utf8',
+    );
+    const exchange = google.slice(google.indexOf('exchangeAuthorizationCode'));
+    expect(exchange).not.toContain('assertOfflineRefreshToken');
+
+    const flow = readFileSync(
+      resolve('supabase/functions/_shared/oauth-callback.ts'),
+      'utf8',
+    );
+    expect(flow).toContain('refreshToken: assertOfflineRefreshToken(tokens)');
+    expect(flow).toContain('dependencies.readRefreshToken(target.id, attempt.userId)');
+
     const callback = readFileSync(
       resolve('supabase/functions/youtube-oauth-callback/index.ts'),
       'utf8',
     );
-    expect(callback).toContain(
-      'const newRefreshToken = assertOfflineRefreshToken(tokens)',
-    );
-    expect(callback).toContain('p_refresh_token: newRefreshToken');
-    expect(callback).not.toContain("tokens.refreshToken ?? ''");
+    expect(callback).toContain(".eq('id', targetConnectionId)");
+    expect(callback).toContain(".eq('user_id', userId)");
+    expect(callback).toContain('p_connection_id: targetConnectionId');
+    expect(callback).toContain('p_refresh_token: input.refreshToken');
   });
 
   it('never returns Google token fields from public Edge Function modules', () => {
@@ -94,6 +107,7 @@ describe('browser and logging secret boundaries', () => {
       resolve('src/features/auth/ApplicationAuthPanel.tsx'),
       resolve('src/features/auth/PasswordRecoveryPage.tsx'),
       resolve('src/features/auth/SignInMethodsSettings.tsx'),
+      resolve('src/components/common/PasswordField.tsx'),
     ].map((path) => readFileSync(path, 'utf8'));
 
     for (const source of passwordSources) {

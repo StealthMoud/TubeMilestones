@@ -101,11 +101,8 @@ export function assertRequiredScopes(scopes: readonly string[]): void {
   }
 }
 
-export function reconnectIdentityMatches(
-  storedSubject: string,
-  authorizedSubject: string,
-): boolean {
-  return storedSubject.startsWith('legacy:') || storedSubject === authorizedSubject;
+export function isLegacyGoogleSubject(subject: string): boolean {
+  return subject.startsWith('legacy:');
 }
 
 const tokenResponseSchema = z.object({

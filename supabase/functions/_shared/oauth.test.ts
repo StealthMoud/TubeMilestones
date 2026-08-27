@@ -7,10 +7,10 @@ import {
   assertRequiredScopes,
   buildYouTubeAuthorizationUrl,
   createOAuthAttempt,
+  isLegacyGoogleSubject,
   oauthStartRequestSchema,
   parseGoogleTokenResponse,
   parseOAuthCallback,
-  reconnectIdentityMatches,
   REQUIRED_YOUTUBE_SCOPES,
   validateOAuthAttempt,
 } from './oauth';
@@ -129,16 +129,12 @@ describe('server OAuth security primitives', () => {
     ).toThrow();
   });
 
-  it('rejects the wrong Google identity on reconnect before mutation', () => {
-    expect(reconnectIdentityMatches('google-subject-a', 'google-subject-a')).toBe(true);
-    expect(reconnectIdentityMatches('google-subject-a', 'google-subject-b')).toBe(
-      false,
-    );
-    expect(reconnectIdentityMatches('legacy:user-id', 'google-subject-a')).toBe(true);
+  it('recognizes only explicit migration markers as legacy subjects', () => {
+    expect(isLegacyGoogleSubject('legacy:user-id')).toBe(true);
+    expect(isLegacyGoogleSubject('google-subject-a')).toBe(false);
   });
 
-  it('fails reconnect before mutation when Google omits a new refresh token', () => {
-    const existingCredential = 'existing-refresh-credential-remains-valid';
+  it('keeps the ADD-only offline credential assertion fail-closed', () => {
     const tokens = parseGoogleTokenResponse({
       access_token: 'access-token-value-long-enough',
       expires_in: 3600,
@@ -147,6 +143,5 @@ describe('server OAuth security primitives', () => {
     expect(() => assertOfflineRefreshToken(tokens)).toThrow(
       expect.objectContaining({ code: 'YOUTUBE_REAUTH_REQUIRED' }),
     );
-    expect(existingCredential).toBe('existing-refresh-credential-remains-valid');
   });
 });

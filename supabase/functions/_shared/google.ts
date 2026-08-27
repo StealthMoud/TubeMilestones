@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { requiredEnv } from './env.ts';
 import { AppError } from './errors.ts';
 import {
-  assertOfflineRefreshToken,
   assertRequiredScopes,
   parseGoogleTokenResponse,
   type GoogleTokenSet,
@@ -71,7 +70,6 @@ export async function exchangeAuthorizationCode(
     }),
   );
   assertRequiredScopes(tokens.scopes);
-  assertOfflineRefreshToken(tokens);
   return tokens;
 }
 

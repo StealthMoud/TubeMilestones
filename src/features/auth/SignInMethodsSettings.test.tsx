@@ -24,8 +24,17 @@ describe('SignInMethodsSettings', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Add password' }));
-    await user.type(screen.getByLabelText('New password'), 'new password');
-    await user.type(screen.getByLabelText('Confirm new password'), 'new password');
+    const password = screen.getByLabelText('New password');
+    const confirmation = screen.getByLabelText('Confirm new password');
+    const visibilityToggles = screen.getAllByRole('button', {
+      name: 'Show password',
+    });
+    expect(visibilityToggles).toHaveLength(2);
+    await user.click(visibilityToggles[1]!);
+    expect(password).toHaveAttribute('type', 'password');
+    expect(confirmation).toHaveAttribute('type', 'text');
+    await user.type(password, 'new password');
+    await user.type(confirmation, 'new password');
     await user.click(screen.getByRole('button', { name: 'Add password' }));
 
     expect(updatePassword).toHaveBeenCalledWith('new password');
@@ -48,6 +57,7 @@ describe('SignInMethodsSettings', () => {
     );
     expect(screen.queryByText('Google')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(screen.getAllByRole('button', { name: 'Show password' })).toHaveLength(2);
     await user.type(screen.getByLabelText('New password'), 'new password');
     await user.type(screen.getByLabelText('Confirm new password'), 'not matching');
     await user.click(screen.getByRole('button', { name: 'Change password' }));

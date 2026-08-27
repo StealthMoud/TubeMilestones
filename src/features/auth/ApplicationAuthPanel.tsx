@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/common/Button';
+import { PasswordField } from '../../components/common/PasswordField';
 import type { PasswordSignUpResult } from '../../auth/AuthProvider';
 import { applicationAuthErrorMessage } from '../../auth/authErrors';
 import {
@@ -255,31 +256,26 @@ export function ApplicationAuthPanel({
             required
           />
         </label>
-        <label className="form-field">
-          <span>Password</span>
-          <input
-            name="password"
-            type="password"
-            autoComplete={signingUp ? 'new-password' : 'current-password'}
+        <PasswordField
+          key={`password-${mode}`}
+          label="Password"
+          name="password"
+          autoComplete={signingUp ? 'new-password' : 'current-password'}
+          minLength={8}
+          maxLength={AUTH_PASSWORD_MAX_LENGTH}
+          disabled={pending || !configured}
+          required
+        />
+        {signingUp ? (
+          <PasswordField
+            label="Confirm password"
+            name="confirmPassword"
+            autoComplete="new-password"
             minLength={8}
             maxLength={AUTH_PASSWORD_MAX_LENGTH}
             disabled={pending || !configured}
             required
           />
-        </label>
-        {signingUp ? (
-          <label className="form-field">
-            <span>Confirm password</span>
-            <input
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={AUTH_PASSWORD_MAX_LENGTH}
-              disabled={pending || !configured}
-              required
-            />
-          </label>
         ) : null}
         {!signingUp ? (
           <button

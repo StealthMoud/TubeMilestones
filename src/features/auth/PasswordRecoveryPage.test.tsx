@@ -18,6 +18,7 @@ describe('PasswordRecoveryPage', () => {
         completePasswordRecovery={vi.fn()}
       />,
     );
+    expect(screen.getAllByRole('button', { name: 'Show password' })).toHaveLength(2);
     await user.type(screen.getByLabelText('New password'), 'password');
     await user.type(screen.getByLabelText('Confirm new password'), 'different');
     await user.click(screen.getByRole('button', { name: 'Update password' }));

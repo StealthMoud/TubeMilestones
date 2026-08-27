@@ -19,12 +19,20 @@ test('desktop application auth covers sign in, signup, recovery, and Google', as
     page.getByRole('button', { name: 'Continue with Google' }),
   ).toBeEnabled();
 
+  const signInPassword = page.getByLabel('Password', { exact: true });
+  await expect(signInPassword).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await expect(signInPassword).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Hide password' }).click();
+  await expect(signInPassword).toHaveAttribute('type', 'password');
+
   await page.getByLabel('Email').fill('creator@example.com');
-  await page.getByLabel('Password', { exact: true }).fill('password');
+  await signInPassword.fill('password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
 
   await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('button', { name: 'Show password' })).toHaveCount(2);
   await page.getByLabel('Email').fill('creator@example.com');
   await page.getByLabel('Password', { exact: true }).fill('password');
   await page.getByLabel('Confirm password', { exact: true }).fill('password');

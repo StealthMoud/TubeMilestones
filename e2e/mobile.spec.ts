@@ -33,15 +33,64 @@ test('mobile application auth covers sign in, signup, recovery, and Google', asy
     page.getByRole('button', { name: 'Continue with Google' }),
   ).toBeEnabled();
 
+  const signInPassword = page.getByLabel('Password', { exact: true });
+  await expect(signInPassword).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await expect(signInPassword).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Hide password' }).click();
+  await expect(signInPassword).toHaveAttribute('type', 'password');
+
+  const mobilePasswordLayout = await page
+    .locator('.password-field__control')
+    .first()
+    .evaluate((control) => {
+      const input = control.querySelector('input');
+      const toggle = control.querySelector('button');
+      if (!input || !toggle) return null;
+      const inputBox = input.getBoundingClientRect();
+      const toggleBox = toggle.getBoundingClientRect();
+      return {
+        inputRight: inputBox.right,
+        inputTop: inputBox.top,
+        inputBottom: inputBox.bottom,
+        toggleRight: toggleBox.right,
+        toggleTop: toggleBox.top,
+        toggleBottom: toggleBox.bottom,
+        toggleWidth: toggleBox.width,
+        toggleHeight: toggleBox.height,
+      };
+    });
+  expect(mobilePasswordLayout).not.toBeNull();
+  expect(mobilePasswordLayout!.toggleWidth).toBeGreaterThanOrEqual(44);
+  expect(mobilePasswordLayout!.toggleHeight).toBeGreaterThanOrEqual(44);
+  expect(mobilePasswordLayout!.toggleRight).toBeLessThanOrEqual(
+    mobilePasswordLayout!.inputRight + 1,
+  );
+  expect(mobilePasswordLayout!.toggleTop).toBeGreaterThanOrEqual(
+    mobilePasswordLayout!.inputTop - 1,
+  );
+  expect(mobilePasswordLayout!.toggleBottom).toBeLessThanOrEqual(
+    mobilePasswordLayout!.inputBottom + 1,
+  );
+
   await page.getByLabel('Email').fill('creator@example.com');
-  await page.getByLabel('Password', { exact: true }).fill('password');
+  await signInPassword.fill('password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
 
   await page.getByRole('button', { name: 'Create account' }).click();
+  const signupPassword = page.getByLabel('Password', { exact: true });
+  const signupConfirmation = page.getByLabel('Confirm password', { exact: true });
+  await expect(signupPassword).toHaveAttribute('type', 'password');
+  await expect(signupConfirmation).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).nth(1).click();
+  await expect(signupPassword).toHaveAttribute('type', 'password');
+  await expect(signupConfirmation).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Hide password' }).click();
+  await expect(signupConfirmation).toHaveAttribute('type', 'password');
   await page.getByLabel('Email').fill('creator@example.com');
-  await page.getByLabel('Password', { exact: true }).fill('password');
-  await page.getByLabel('Confirm password', { exact: true }).fill('password');
+  await signupPassword.fill('password');
+  await signupConfirmation.fill('password');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
 
@@ -57,6 +106,7 @@ test('mobile application auth covers sign in, signup, recovery, and Google', asy
   await expect(
     page.getByRole('heading', { name: 'Choose a new password' }),
   ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show password' })).toHaveCount(2);
   await page.getByLabel('New password', { exact: true }).fill('new password');
   await page.getByLabel('Confirm new password', { exact: true }).fill('new password');
   await page.getByRole('button', { name: 'Update password' }).click();

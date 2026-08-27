@@ -6,13 +6,11 @@ import { AppError, asAppError } from '../_shared/errors.ts';
 import {
   exchangeAuthorizationCode,
   fetchGoogleConnectionIdentity,
+  refreshGoogleAccessToken,
 } from '../_shared/google.ts';
 import { logEvent } from '../_shared/logging.ts';
-import {
-  assertOfflineRefreshToken,
-  parseOAuthCallback,
-  reconnectIdentityMatches,
-} from '../_shared/oauth.ts';
+import { processYouTubeOAuthAuthorization } from '../_shared/oauth-callback.ts';
+import { parseOAuthCallback } from '../_shared/oauth.ts';
 import { fetchOwnedChannels, type ObservedChannel } from '../_shared/youtube.ts';
 
 const completionSchema = z.discriminatedUnion('outcome', [
@@ -77,48 +75,69 @@ Deno.serve(async (request) => {
     if (!attempt) throw new AppError('OAUTH_STATE_INVALID');
     if (callback.kind === 'denied') throw new AppError('OAUTH_DENIED');
 
-    const tokens = await exchangeAuthorizationCode(
+    const completion = await processYouTubeOAuthAuthorization(
+      {
+        userId: attempt.user_id,
+        codeVerifier: attempt.code_verifier,
+        intent: attempt.intent,
+        targetConnectionId: attempt.target_connection_id,
+      },
       callback.code,
-      attempt.code_verifier,
+      {
+        exchangeCode: exchangeAuthorizationCode,
+        fetchIdentity: fetchGoogleConnectionIdentity,
+        async loadReconnectTarget(targetConnectionId, userId) {
+          const target = await admin
+            .from('youtube_connections')
+            .select('id, user_id, google_subject, granted_scopes')
+            .eq('id', targetConnectionId)
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (target.error) {
+            throw new AppError('SUPABASE_ERROR', { cause: target.error });
+          }
+          if (!target.data) return null;
+          connectionId = target.data.id;
+          return {
+            id: target.data.id,
+            userId: target.data.user_id,
+            googleSubject: target.data.google_subject,
+            grantedScopes: target.data.granted_scopes,
+          };
+        },
+        async readRefreshToken(targetConnectionId, userId) {
+          const credential = await admin.rpc('read_youtube_refresh_token', {
+            p_connection_id: targetConnectionId,
+            p_user_id: userId,
+          });
+          if (credential.error) {
+            throw new AppError('SUPABASE_ERROR', { cause: credential.error });
+          }
+          return credential.data;
+        },
+        refreshAccessToken: refreshGoogleAccessToken,
+        fetchChannels: fetchOwnedChannels,
+        async completeConnection(input) {
+          const completed = await admin.rpc('complete_youtube_oauth_connection', {
+            p_user_id: input.userId,
+            p_intent: input.intent,
+            p_target_connection_id: input.targetConnectionId,
+            p_google_subject: input.googleSubject,
+            p_google_email: input.googleEmail,
+            p_refresh_token: input.refreshToken,
+            p_granted_scopes: input.grantedScopes,
+            p_channels: input.channels.map((channel) =>
+              channelPayload(channel, input.observedAt),
+            ),
+          });
+          if (completed.error) {
+            throw new AppError('SUPABASE_ERROR', { cause: completed.error });
+          }
+          return completed.data;
+        },
+      },
     );
-    const newRefreshToken = assertOfflineRefreshToken(tokens);
-    const identity = await fetchGoogleConnectionIdentity(tokens.accessToken);
-
-    if (attempt.intent === 'RECONNECT') {
-      if (!attempt.target_connection_id) throw new AppError('OAUTH_STATE_INVALID');
-      const target = await admin
-        .from('youtube_connections')
-        .select('id, google_subject')
-        .eq('id', attempt.target_connection_id)
-        .eq('user_id', attempt.user_id)
-        .maybeSingle();
-      if (target.error) throw new AppError('SUPABASE_ERROR', { cause: target.error });
-      if (!target.data) throw new AppError('FORBIDDEN');
-      connectionId = target.data.id;
-      if (!reconnectIdentityMatches(target.data.google_subject, identity.subject)) {
-        throw new AppError('YOUTUBE_ACCOUNT_MISMATCH');
-      }
-    } else if (attempt.intent !== 'ADD' || attempt.target_connection_id) {
-      throw new AppError('OAUTH_STATE_INVALID');
-    }
-
-    const channels = await fetchOwnedChannels(tokens.accessToken);
-    if (channels.length === 0) throw new AppError('YOUTUBE_API_ERROR');
-    const observedAt = new Date().toISOString();
-    const completed = await admin.rpc('complete_youtube_oauth_connection', {
-      p_user_id: attempt.user_id,
-      p_intent: attempt.intent,
-      p_target_connection_id: attempt.target_connection_id,
-      p_google_subject: identity.subject,
-      p_google_email: identity.email,
-      p_refresh_token: newRefreshToken,
-      p_granted_scopes: tokens.scopes,
-      p_channels: channels.map((channel) => channelPayload(channel, observedAt)),
-    });
-    if (completed.error) {
-      throw new AppError('SUPABASE_ERROR', { cause: completed.error });
-    }
-    const parsed = completionSchema.safeParse(completed.data);
+    const parsed = completionSchema.safeParse(completion);
     if (!parsed.success) {
       throw new AppError('SUPABASE_ERROR', { cause: parsed.error });
     }

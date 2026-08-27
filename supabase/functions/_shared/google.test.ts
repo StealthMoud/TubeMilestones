@@ -1,9 +1,46 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchGoogleConnectionIdentity } from './google';
+import { exchangeAuthorizationCode, fetchGoogleConnectionIdentity } from './google';
+import { REQUIRED_YOUTUBE_SCOPES } from './oauth';
 
 describe('Google OpenID UserInfo identity', () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it('allows an authorization-code exchange without a new refresh token', async () => {
+    const environment = new Map([
+      ['GOOGLE_YOUTUBE_CLIENT_ID', 'youtube-client-id'],
+      ['GOOGLE_YOUTUBE_CLIENT_SECRET', 'youtube-client-secret'],
+      [
+        'GOOGLE_YOUTUBE_REDIRECT_URI',
+        'https://project.supabase.co/functions/v1/youtube-oauth-callback',
+      ],
+    ]);
+    vi.stubGlobal('Deno', {
+      env: { get: (name: string) => environment.get(name) },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            access_token: 'authorization-access-token-value',
+            expires_in: 3600,
+            scope: REQUIRED_YOUTUBE_SCOPES.join(' '),
+            token_type: 'Bearer',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+
+    await expect(
+      exchangeAuthorizationCode('authorization-code', 'pkce-code-verifier'),
+    ).resolves.toMatchObject({
+      accessToken: 'authorization-access-token-value',
+      refreshToken: null,
+      scopes: REQUIRED_YOUTUBE_SCOPES,
+    });
+  });
 
   it('derives the immutable subject and a verified display email server-side', async () => {
     const fetchMock = vi.fn().mockResolvedValue(

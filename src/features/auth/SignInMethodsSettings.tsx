@@ -8,6 +8,7 @@ import {
   authPasswordError,
 } from '../../auth/validation';
 import { Button } from '../../components/common/Button';
+import { PasswordField } from '../../components/common/PasswordField';
 
 interface SignInMethodsSettingsProps {
   methods: ApplicationSignInMethods;
@@ -92,30 +93,24 @@ export function SignInMethodsSettings({
 
       {editing ? (
         <form className="password-settings-form" onSubmit={submit} noValidate>
-          <label className="form-field">
-            <span>New password</span>
-            <input
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={AUTH_PASSWORD_MAX_LENGTH}
-              disabled={pending || disabled}
-              required
-            />
-          </label>
-          <label className="form-field">
-            <span>Confirm new password</span>
-            <input
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={AUTH_PASSWORD_MAX_LENGTH}
-              disabled={pending || disabled}
-              required
-            />
-          </label>
+          <PasswordField
+            label="New password"
+            name="password"
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={AUTH_PASSWORD_MAX_LENGTH}
+            disabled={pending || disabled}
+            required
+          />
+          <PasswordField
+            label="Confirm new password"
+            name="confirmPassword"
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={AUTH_PASSWORD_MAX_LENGTH}
+            disabled={pending || disabled}
+            required
+          />
           {error ? (
             <p className="form-error" role="alert" aria-live="assertive">
               {error}
