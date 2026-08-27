@@ -37,9 +37,14 @@ test('signed-in unconnected fixture shows the separate YouTube authorization ste
 }) => {
   await page.goto('/#/?demo=unconnected');
   await expect(
-    page.getByRole('heading', { name: 'Connect your YouTube channel.' }),
+    page.getByRole('heading', { name: 'Connect your YouTube account.' }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Connect YouTube' })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Connect YouTube account' }),
+  ).toBeEnabled();
+  await expect(
+    page.getByText(/can be different from the Google account/),
+  ).toBeVisible();
   await expect(
     page.getByText(/cannot edit, upload, or delete YouTube content/),
   ).toBeVisible();
@@ -98,9 +103,15 @@ test('Settings is grouped and confirms disconnect semantics', async ({ page }) =
   await page.goto('/#/settings?demo=small');
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   await expect(page.getByText('User entered')).toBeVisible();
+  await expect(page.getByText('Used only to sign into TubeMilestones.')).toBeVisible();
+  await expect(
+    page.getByText('youtube-owner@example.com', { exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Disconnect' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Disconnect YouTube?' });
-  await expect(dialog).toContainText('It does not delete anything from YouTube.');
+  const dialog = page.getByRole('dialog', {
+    name: 'Disconnect this YouTube account?',
+  });
+  await expect(dialog).toContainText('Other connected accounts stay available.');
   await dialog.getByRole('button', { name: 'Keep connected' }).click();
   await expect(dialog).toBeHidden();
   await expectNoHorizontalOverflow(page);

@@ -57,8 +57,15 @@ function TrustLine() {
 }
 
 export function LandingPage() {
-  const { status, error, oauthConfigured, authUser, signIn, connect, startDemo } =
-    useTubeMilestones();
+  const {
+    status,
+    error,
+    oauthConfigured,
+    authUser,
+    signIn,
+    addYouTubeAccount,
+    startDemo,
+  } = useTubeMilestones();
   const signedIn = Boolean(authUser);
   const connecting = status === 'AUTHORIZING' || status === 'SYNCING';
   const demoAllowed = isDemoModeAllowed();
@@ -95,7 +102,7 @@ export function LandingPage() {
             <h1>
               {signedIn ? (
                 <>
-                  Connect your <em>YouTube channel.</em>
+                  Connect your <em>YouTube account.</em>
                 </>
               ) : (
                 <>
@@ -105,7 +112,7 @@ export function LandingPage() {
             </h1>
             <p className="landing-hero__lede">
               {signedIn
-                ? 'Read-only access lets TubeMilestones observe your channel, build its honest milestone history, and keep it available across devices.'
+                ? 'You’re signed in. Connect a YouTube account to choose a channel and begin tracking. The YouTube account can be different from the Google account you used to sign in.'
                 : "See how far you've come. Know what's next. TubeMilestones turns channel data into a personal progression path."}
             </p>
 
@@ -113,14 +120,10 @@ export function LandingPage() {
               {signedIn ? (
                 <Button
                   icon={<ArrowRight size={18} aria-hidden="true" />}
-                  onClick={() => void connect()}
+                  onClick={() => void addYouTubeAccount()}
                   disabled={connecting || !oauthConfigured}
                 >
-                  {connecting
-                    ? 'Opening Google…'
-                    : status === 'REAUTH_REQUIRED'
-                      ? 'Reconnect YouTube'
-                      : 'Connect YouTube'}
+                  {connecting ? 'Opening Google…' : 'Connect YouTube account'}
                 </Button>
               ) : (
                 <Button

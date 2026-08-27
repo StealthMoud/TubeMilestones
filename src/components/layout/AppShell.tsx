@@ -7,6 +7,7 @@ import { formatReportingDay } from '../../domain/metrics/dates';
 import { userMessageForError } from '../../services/errors';
 import { BrandMark } from '../common/BrandMark';
 import { ChannelAvatar } from '../common/ChannelAvatar';
+import { ChannelSwitcher } from '../common/ChannelSwitcher';
 import { MilestoneCelebration } from '../feedback/MilestoneCelebration';
 
 const NAV_ITEMS = [
@@ -37,8 +38,21 @@ function MainNavigation() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { data, status, warnings, error, isDemo, refresh, connect, exitDemo } =
-    useTubeMilestones();
+  const {
+    data,
+    connections,
+    selectedConnection,
+    channels,
+    status,
+    warnings,
+    error,
+    isDemo,
+    refresh,
+    chooseChannel,
+    addYouTubeAccount,
+    reconnectYouTubeAccount,
+    exitDemo,
+  } = useTubeMilestones();
   if (!data) return null;
 
   const analyticsThrough = data.analyticsSummary?.availableThrough;
@@ -48,6 +62,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const needsAuthorization =
     status === 'REAUTH_REQUIRED' || status === 'COMPLIANCE_HOLD';
   const contextualError = warnings[0] ?? error;
+  const reconnectSelected = () =>
+    reconnectYouTubeAccount(selectedConnection?.id ?? data.channel.connectionId);
 
   return (
     <div className="app-frame">
@@ -83,11 +99,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <header className="app-header">
           <div className="app-header__identity">
-            <div>
-              <strong>TubeMilestones</strong>
-              <span className="app-header__channel">{data.channel.title}</span>
-              <span className="app-header__mobile-freshness">Updated {updated}</span>
-            </div>
+            <ChannelSwitcher
+              selected={data.channel}
+              channels={channels}
+              connections={connections}
+              onSelect={chooseChannel}
+              onAddAccount={addYouTubeAccount}
+            />
+            <span className="app-header__mobile-freshness">Updated {updated}</span>
           </div>
           <div className="app-header__freshness">
             <span>Updated {updated}</span>
@@ -103,7 +122,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 needsAuthorization ? 'Reconnect YouTube' : 'Refresh YouTube data'
               }
               title={needsAuthorization ? 'Reconnect YouTube' : 'Refresh YouTube data'}
-              onClick={() => void (needsAuthorization ? connect() : refresh())}
+              onClick={() =>
+                void (needsAuthorization ? reconnectSelected() : refresh())
+              }
               disabled={status === 'SYNCING' || isDemo}
             >
               <RefreshCw
@@ -112,18 +133,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={status === 'SYNCING' ? 'is-spinning' : undefined}
               />
             </button>
-            <ChannelAvatar
-              title={data.channel.title}
-              src={data.channel.thumbnailUrl}
-              size="small"
-            />
           </div>
         </header>
 
         {(status === 'REAUTH_REQUIRED' || status === 'COMPLIANCE_HOLD') && data ? (
           <div className="context-banner context-banner--warning">
             <span>Reconnect YouTube to refresh your progress.</span>
-            <button type="button" onClick={() => void connect()}>
+            <button type="button" onClick={() => void reconnectSelected()}>
               Reconnect
             </button>
           </div>

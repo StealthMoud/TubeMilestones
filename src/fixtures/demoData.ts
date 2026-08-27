@@ -166,6 +166,7 @@ export function createDemoDashboard(name: DemoFixtureName = 'small'): DashboardD
   const hidden = fixture.hiddenSubscriberCount ?? false;
   const channel: Channel = {
     channelId,
+    connectionId: `demo-connection-${name}`,
     youtubeChannelId: `youtube-${channelId}`,
     title: fixture.title,
     thumbnailUrl: '',

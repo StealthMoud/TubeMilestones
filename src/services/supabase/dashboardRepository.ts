@@ -15,7 +15,8 @@ import { requireSupabaseClient } from './client';
 export type Connection = Tables<'youtube_connections'>;
 
 export interface CloudDashboard {
-  connection: Connection | null;
+  connections: Connection[];
+  selectedConnection: Connection | null;
   channels: Channel[];
   dashboard: DashboardData | null;
 }
@@ -53,6 +54,7 @@ function safeTargetValue(value: string | number, field: string): number {
 function mapChannel(row: Tables<'channels'>): Channel {
   return {
     channelId: row.id,
+    connectionId: row.connection_id,
     youtubeChannelId: row.youtube_channel_id,
     title: row.title,
     thumbnailUrl: row.thumbnail_url,
@@ -172,28 +174,39 @@ function assertNoError(error: unknown): void {
 
 export async function loadCloudDashboard(userId: string): Promise<CloudDashboard> {
   const client = requireSupabaseClient();
-  const [profileResult, connectionResult, channelsResult] = await Promise.all([
+  const [profileResult, connectionsResult, channelsResult] = await Promise.all([
     client.from('profiles').select('*').eq('user_id', userId).single(),
-    client.from('youtube_connections').select('*').eq('user_id', userId).maybeSingle(),
+    client
+      .from('youtube_connections')
+      .select('*')
+      .eq('user_id', userId)
+      .order('connected_at'),
     client.from('channels').select('*').eq('user_id', userId).order('title'),
   ]);
   assertNoError(profileResult.error);
-  assertNoError(connectionResult.error);
+  assertNoError(connectionsResult.error);
   assertNoError(channelsResult.error);
   if (!profileResult.data) {
     throw new TubeMilestonesError('SUPABASE_ERROR', 'Profile data is unavailable.');
   }
   const rows = channelsResult.data ?? [];
   const channels = rows.map(mapChannel);
+  const connections = connectionsResult.data ?? [];
   const selectedId = profileResult.data.selected_channel_id;
   const selectedRow = selectedId
     ? rows.find(({ id }) => id === selectedId)
     : rows.length === 1
       ? rows[0]
       : undefined;
-  const connection = connectionResult.data;
-  if (!selectedRow || !connection || connection.status === 'DELETION_PENDING') {
-    return { connection, channels, dashboard: null };
+  const selectedConnection = selectedRow
+    ? (connections.find(({ id }) => id === selectedRow.connection_id) ?? null)
+    : null;
+  if (
+    !selectedRow ||
+    !selectedConnection ||
+    selectedConnection.status === 'DELETION_PENDING'
+  ) {
+    return { connections, selectedConnection, channels, dashboard: null };
   }
 
   const [snapshots, daily, summary, milestones, goals, manual] = await Promise.all([
@@ -229,7 +242,8 @@ export async function loadCloudDashboard(userId: string): Promise<CloudDashboard
   );
   const snapshotRows = snapshots.data ?? [];
   return {
-    connection,
+    connections,
+    selectedConnection,
     channels,
     dashboard: {
       channel: mapChannel(selectedRow),
@@ -244,9 +258,9 @@ export async function loadCloudDashboard(userId: string): Promise<CloudDashboard
         selectedChannelId: selectedRow.id,
         trackingStartedAt:
           snapshotRows[0]?.observed_at ??
-          connection.connected_at ??
+          selectedConnection.connected_at ??
           selectedRow.created_at,
-        authorizationVerifiedAt: connection.last_authorization_verified_at,
+        authorizationVerifiedAt: selectedConnection.last_authorization_verified_at,
         schemaVersion: 2,
         themePreference: profileResult.data.theme,
       },

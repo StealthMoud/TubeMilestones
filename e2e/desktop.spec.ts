@@ -17,6 +17,10 @@ test('desktop Home and Journey use the sidebar composition without overflow', as
   await expect(page.locator('.desktop-sidebar')).toBeVisible();
   await expect(page.locator('.mobile-navigation-wrap')).toBeHidden();
 
+  await page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel').click();
+  await expect(page.getByText(/youtube-owner@example\.com/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add YouTube account' })).toBeVisible();
+
   await page.getByRole('link', { name: 'Journey', exact: true }).click();
 
   await expect(

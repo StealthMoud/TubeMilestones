@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import {
   ExternalLink,
+  Plus,
   RefreshCw,
   RotateCw,
   ShieldCheck,
@@ -48,19 +49,22 @@ function parseOptionalMetric(value: string, integer = false): number | null {
 export default function SettingsPage() {
   const {
     data,
-    connection,
+    connections,
+    selectedConnection,
+    channels,
     status,
     authUser,
     isDemo,
     refresh,
-    connect,
-    disconnect,
+    addYouTubeAccount,
+    reconnectYouTubeAccount,
+    disconnectYouTubeAccount,
     deleteAccount,
     signOut,
     setTheme,
     updateManualMetrics,
   } = useTubeMilestones();
-  const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [disconnectTargetId, setDisconnectTargetId] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [watchHours, setWatchHours] = useState(
     data?.manualMetrics?.qualifiedPublicWatchHours?.toString() ?? '',
@@ -101,10 +105,11 @@ export default function SettingsPage() {
   };
 
   const confirmDisconnect = async () => {
+    if (!disconnectTargetId) return;
     setDestructivePending(true);
     try {
-      await disconnect();
-      setDisconnectOpen(false);
+      await disconnectYouTubeAccount(disconnectTargetId);
+      setDisconnectTargetId(null);
     } finally {
       setDestructivePending(false);
     }
@@ -121,6 +126,8 @@ export default function SettingsPage() {
   };
 
   const refreshing = status === 'AUTHORIZING' || status === 'SYNCING';
+  const disconnectTarget =
+    connections.find(({ id }) => id === disconnectTargetId) ?? null;
 
   return (
     <div className="page page--settings page-enter">
@@ -130,31 +137,122 @@ export default function SettingsPage() {
       </header>
 
       <section className="settings-group" aria-labelledby="account-title">
-        <h2 id="account-title">Account</h2>
+        <h2 id="account-title">TubeMilestones account</h2>
         <div className="settings-list">
-          <div className="settings-row settings-row--identity">
-            <ChannelAvatar
-              title={data.channel.title}
-              src={data.channel.thumbnailUrl}
-              size="large"
-            />
+          <div className="settings-row">
             <div className="settings-row__copy">
-              <strong>{data.channel.title}</strong>
-              <span>{data.channel.youtubeChannelId}</span>
+              <strong>{authUser?.email ?? 'Demo session'}</strong>
+              <span>Used only to sign into TubeMilestones.</span>
             </div>
-            <span className="settings-status">YouTube connected</span>
-          </div>
-          {!isDemo ? (
-            <div className="settings-row">
-              <div className="settings-row__copy">
-                <strong>Google sign-in</strong>
-                <span>{authUser?.email ?? 'Signed in with Supabase Auth'}</span>
-              </div>
+            {!isDemo ? (
               <Button variant="quiet" onClick={() => void signOut()}>
                 Sign out
               </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-group" aria-labelledby="youtube-accounts-title">
+        <div className="settings-group__heading">
+          <div>
+            <h2 id="youtube-accounts-title">Connected YouTube accounts</h2>
+            <p>Each Google authorization and its channels are managed independently.</p>
+          </div>
+        </div>
+        <div className="settings-list settings-connections">
+          {connections.length > 0 ? (
+            connections.map((account) => {
+              const accountChannels = channels.filter(
+                ({ connectionId }) => connectionId === account.id,
+              );
+              const isSelected = account.id === selectedConnection?.id;
+              return (
+                <div className="settings-connection" key={account.id}>
+                  <div className="settings-connection__heading">
+                    <div className="settings-row__copy">
+                      <strong>
+                        {account.google_email ?? 'Connected Google account'}
+                      </strong>
+                      <span>
+                        {account.status === 'CONNECTED'
+                          ? 'Read-only YouTube access'
+                          : account.status.replaceAll('_', ' ').toLowerCase()}
+                      </span>
+                    </div>
+                    <span
+                      className={`settings-status${
+                        account.status === 'CONNECTED' ? '' : ' is-warning'
+                      }`}
+                    >
+                      {isSelected
+                        ? 'Current account'
+                        : account.status.replaceAll('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="settings-connection__channels">
+                    {accountChannels.map((channel) => (
+                      <div key={channel.channelId}>
+                        <ChannelAvatar
+                          title={channel.title}
+                          src={channel.thumbnailUrl}
+                          size="small"
+                        />
+                        <span>
+                          <strong>{channel.title}</strong>
+                          <small>{channel.youtubeChannelId}</small>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="settings-connection__actions">
+                    <Button
+                      variant="quiet"
+                      icon={<RotateCw size={16} aria-hidden="true" />}
+                      disabled={refreshing || isDemo}
+                      onClick={() => void reconnectYouTubeAccount(account.id)}
+                    >
+                      Reconnect
+                    </Button>
+                    <Button
+                      variant="danger"
+                      icon={<Unplug size={16} aria-hidden="true" />}
+                      disabled={destructivePending}
+                      onClick={() => setDisconnectTargetId(account.id)}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="settings-row settings-row--identity">
+              <ChannelAvatar
+                title={data.channel.title}
+                src={data.channel.thumbnailUrl}
+                size="large"
+              />
+              <div className="settings-row__copy">
+                <strong>{data.channel.title}</strong>
+                <span>Demo YouTube account</span>
+              </div>
             </div>
-          ) : null}
+          )}
+          <div className="settings-row">
+            <div className="settings-row__copy">
+              <strong>Add another YouTube account</strong>
+              <span>Google will always show the account chooser.</span>
+            </div>
+            <Button
+              variant="secondary"
+              icon={<Plus size={16} aria-hidden="true" />}
+              disabled={refreshing || isDemo}
+              onClick={() => void addYouTubeAccount()}
+            >
+              Add account
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -190,7 +288,9 @@ export default function SettingsPage() {
             <div className="settings-row__copy">
               <strong>Last refresh</strong>
               <span>
-                {formatTimestamp(connection?.last_synced_at ?? data.channel.updatedAt)}
+                {formatTimestamp(
+                  selectedConnection?.last_synced_at ?? data.channel.updatedAt,
+                )}
               </span>
             </div>
             <Button
@@ -215,20 +315,6 @@ export default function SettingsPage() {
                   : 'Not available'}
               </span>
             </div>
-          </div>
-          <div className="settings-row">
-            <div className="settings-row__copy">
-              <strong>YouTube authorization</strong>
-              <span>Read-only channel and Analytics scopes.</span>
-            </div>
-            <Button
-              variant="quiet"
-              icon={<RotateCw size={16} aria-hidden="true" />}
-              disabled={refreshing || isDemo}
-              onClick={() => void connect()}
-            >
-              Reconnect
-            </Button>
           </div>
         </div>
       </section>
@@ -305,19 +391,6 @@ export default function SettingsPage() {
           <ShieldCheck size={20} aria-hidden="true" />
         </div>
         <div className="settings-list">
-          <div className="settings-row">
-            <div className="settings-row__copy">
-              <strong>Disconnect YouTube</strong>
-              <span>Remove YouTube access and saved channel data.</span>
-            </div>
-            <Button
-              variant="danger"
-              icon={<Unplug size={16} aria-hidden="true" />}
-              onClick={() => setDisconnectOpen(true)}
-            >
-              Disconnect
-            </Button>
-          </div>
           {!isDemo ? (
             <div className="settings-row">
               <div className="settings-row__copy">
@@ -365,13 +438,15 @@ export default function SettingsPage() {
       </section>
 
       <Modal
-        open={disconnectOpen}
-        title="Disconnect YouTube?"
-        description="Disconnecting removes TubeMilestones access and saved YouTube data. It does not delete anything from YouTube."
-        onClose={() => setDisconnectOpen(false)}
+        open={disconnectTargetId !== null}
+        title="Disconnect this YouTube account?"
+        description={`Disconnecting ${
+          disconnectTarget?.google_email ?? 'this Google account'
+        } removes only its TubeMilestones authorization, channels, and saved channel data. Other connected accounts stay available. It does not delete anything from YouTube.`}
+        onClose={() => setDisconnectTargetId(null)}
       >
         <div className="modal-actions">
-          <Button variant="quiet" onClick={() => setDisconnectOpen(false)}>
+          <Button variant="quiet" onClick={() => setDisconnectTargetId(null)}>
             Keep connected
           </Button>
           <Button
@@ -387,7 +462,7 @@ export default function SettingsPage() {
       <Modal
         open={deleteOpen}
         title="Delete your TubeMilestones account?"
-        description="This permanently deletes your YouTube connection, hot database records, encrypted archives, and TubeMilestones account. This cannot be undone."
+        description="This permanently removes every connected YouTube account, all hot database records, encrypted archives, and your TubeMilestones account. This cannot be undone."
         onClose={() => setDeleteOpen(false)}
       >
         <div className="modal-actions">

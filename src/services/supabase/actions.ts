@@ -27,8 +27,10 @@ const deletionSchema = z.object({
 export type SyncResponse = z.infer<typeof syncResponseSchema>;
 export type DeletionResponse = z.infer<typeof deletionSchema>;
 
-export async function startYouTubeAuthorization(): Promise<void> {
-  const raw = await invokeFunction<unknown>('youtube-oauth-start');
+async function openYouTubeAuthorization(
+  input: { intent: 'ADD' } | { intent: 'RECONNECT'; connectionId: string },
+): Promise<void> {
+  const raw = await invokeFunction<unknown>('youtube-oauth-start', input);
   const result = oauthStartSchema.safeParse(raw);
   if (!result.success) {
     throw new TubeMilestonesError(
@@ -45,6 +47,14 @@ export async function startYouTubeAuthorization(): Promise<void> {
     );
   }
   window.location.assign(url.toString());
+}
+
+export async function addYouTubeAccount(): Promise<void> {
+  await openYouTubeAuthorization({ intent: 'ADD' });
+}
+
+export async function reconnectYouTubeAccount(connectionId: string): Promise<void> {
+  await openYouTubeAuthorization({ intent: 'RECONNECT', connectionId });
 }
 
 export async function synchronizeChannel(
@@ -162,8 +172,12 @@ export async function markCelebrationSeen(milestoneId: string): Promise<void> {
     });
 }
 
-export async function requestYouTubeDisconnect(): Promise<DeletionResponse> {
-  return deletionSchema.parse(await invokeFunction<unknown>('disconnect-youtube'));
+export async function requestYouTubeDisconnect(
+  connectionId: string,
+): Promise<DeletionResponse> {
+  return deletionSchema.parse(
+    await invokeFunction<unknown>('disconnect-youtube', { connectionId }),
+  );
 }
 
 export async function requestAccountDeletion(): Promise<DeletionResponse> {

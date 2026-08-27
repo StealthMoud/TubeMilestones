@@ -21,8 +21,8 @@ export function AppRouter() {
 
   if (isInitializing) return <ScreenSkeleton />;
   if (location.pathname === '/oauth/youtube') return <OAuthCallbackPage />;
-  if (status === 'DELETION_PENDING') return <DeletionPending />;
   if (pendingChannels.length > 0) return <ChannelSelector />;
+  if (status === 'DELETION_PENDING' && !data) return <DeletionPending />;
   if (!data) {
     if (status === 'SYNCING') return <SyncingState stage={syncStage} />;
     return <LandingPage />;

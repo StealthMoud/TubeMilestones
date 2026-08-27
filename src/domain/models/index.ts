@@ -10,6 +10,7 @@ export type SubscriberPrecision =
 
 export interface Channel {
   channelId: string;
+  connectionId: string;
   youtubeChannelId: string;
   title: string;
   thumbnailUrl: string;

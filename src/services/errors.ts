@@ -12,6 +12,9 @@ export type TubeMilestonesErrorCode =
   | 'SYNC_IN_PROGRESS'
   | 'SYNC_COOLDOWN'
   | 'GOOGLE_REFRESH_FAILED'
+  | 'GOOGLE_IDENTITY_FAILED'
+  | 'YOUTUBE_ACCOUNT_MISMATCH'
+  | 'YOUTUBE_CHANNELS_ALREADY_CONNECTED'
   | 'YOUTUBE_QUOTA'
   | 'YOUTUBE_API_ERROR'
   | 'ANALYTICS_UNAVAILABLE'
@@ -60,11 +63,16 @@ export function userMessageForError(error: unknown): string {
     OAUTH_STATE_USED: 'This connection request was already used. Start again.',
     OAUTH_DENIED: 'YouTube access was not approved.',
     OAUTH_CODE_MISSING: 'Google did not return an authorization code.',
-    YOUTUBE_NOT_CONNECTED: 'Connect YouTube to continue.',
+    YOUTUBE_NOT_CONNECTED: 'Connect a YouTube account to continue.',
     YOUTUBE_REAUTH_REQUIRED: 'Reconnect YouTube to refresh your journey.',
     SYNC_IN_PROGRESS: 'Your channel is already refreshing in another tab.',
     SYNC_COOLDOWN: 'Your channel refreshed recently. Try again in a few minutes.',
     GOOGLE_REFRESH_FAILED: 'Google authorization is temporarily unavailable.',
+    GOOGLE_IDENTITY_FAILED: 'Google could not verify the connected account identity.',
+    YOUTUBE_ACCOUNT_MISMATCH:
+      'Choose the same Google account that belongs to this YouTube connection.',
+    YOUTUBE_CHANNELS_ALREADY_CONNECTED:
+      'Those YouTube channels are already tracked through another connected account.',
     YOUTUBE_QUOTA: 'YouTube quota is temporarily unavailable.',
     YOUTUBE_API_ERROR: 'YouTube data is temporarily unavailable.',
     ANALYTICS_UNAVAILABLE:

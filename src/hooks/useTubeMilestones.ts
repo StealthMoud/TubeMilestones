@@ -19,14 +19,15 @@ import {
   userMessageForError,
 } from '../services/errors';
 import {
+  addYouTubeAccount,
   createGoal,
   deleteGoal,
   markCelebrationSeen,
+  reconnectYouTubeAccount,
   requestAccountDeletion,
   requestYouTubeDisconnect,
   saveManualValues,
   selectChannel,
-  startYouTubeAuthorization,
   synchronizeChannel,
   updateTheme,
 } from '../services/supabase/actions';
@@ -85,12 +86,34 @@ function connectionStatus(connection: Connection | null, hasData: boolean): AppS
 
 const DEMO_USER = {
   id: '00000000-0000-4000-8000-000000000001',
-  email: 'creator@example.com',
+  email: 'login@example.com',
   app_metadata: {},
   user_metadata: {},
   aud: 'authenticated',
   created_at: '2026-08-26T00:00:00.000Z',
 } as User;
+
+function demoConnection(data: DashboardData, reauthRequired: boolean): Connection {
+  return {
+    id: data.channel.connectionId,
+    user_id: DEMO_USER.id,
+    google_subject: 'demo-google-subject',
+    google_email: 'youtube-owner@example.com',
+    status: reauthRequired ? 'REAUTH_REQUIRED' : 'CONNECTED',
+    connected_at: data.metadata.trackingStartedAt ?? data.channel.publishedAt,
+    last_authorization_verified_at: data.metadata.authorizationVerifiedAt,
+    last_verification_attempt_at: data.metadata.authorizationVerifiedAt,
+    verification_retry_count: 0,
+    verification_claim_id: null,
+    verification_claimed_at: null,
+    last_synced_at: data.channel.updatedAt,
+    last_sync_started_at: null,
+    last_sync_error_code: reauthRequired ? 'YOUTUBE_REAUTH_REQUIRED' : null,
+    granted_scopes: [],
+    created_at: data.metadata.trackingStartedAt ?? data.channel.publishedAt,
+    updated_at: data.channel.updatedAt,
+  };
+}
 
 export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
   const auth = useAuth();
@@ -110,7 +133,8 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
   }, [auth.user?.id, queryClient]);
 
   const signInMutation = useMutation({ mutationFn: auth.signInWithGoogle });
-  const connectMutation = useMutation({ mutationFn: startYouTubeAuthorization });
+  const addAccountMutation = useMutation({ mutationFn: addYouTubeAccount });
+  const reconnectMutation = useMutation({ mutationFn: reconnectYouTubeAccount });
   const syncMutation = useMutation({
     mutationFn: synchronizeChannel,
     onSuccess: invalidate,
@@ -119,9 +143,10 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     mutationFn: async (channelId: string) => {
       if (!auth.user) throw new TubeMilestonesError('AUTH_REQUIRED', 'Sign in first.');
       await selectChannel(auth.user.id, channelId);
+      await invalidate();
       return synchronizeChannel({ channelId, manual: false });
     },
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const disconnectMutation = useMutation({
     mutationFn: requestYouTubeDisconnect,
@@ -136,12 +161,29 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
   });
 
   const data = demo.data ?? cloud.data?.dashboard ?? null;
-  const connection = cloud.data?.connection ?? null;
+  const fixtureConnection = demo.data
+    ? demoConnection(demo.data, demo.scenario === 'reauth')
+    : null;
+  const connections = fixtureConnection
+    ? [fixtureConnection]
+    : (cloud.data?.connections ?? []);
+  const selectedConnection =
+    fixtureConnection ?? cloud.data?.selectedConnection ?? null;
+  const channels = demo.data ? [demo.data.channel] : (cloud.data?.channels ?? []);
   const backgroundSyncKey = useRef<string | null>(null);
   const pendingChannels: Channel[] =
-    !demo.isDemo && connection && !data ? (cloud.data?.channels ?? []) : [];
+    !demo.isDemo && !data
+      ? channels.filter(
+          (channel) =>
+            connections.find(({ id }) => id === channel.connectionId)?.status !==
+            'DELETION_PENDING',
+        )
+      : [];
   const busy =
-    connectMutation.isPending || syncMutation.isPending || channelMutation.isPending;
+    addAccountMutation.isPending ||
+    reconnectMutation.isPending ||
+    syncMutation.isPending ||
+    channelMutation.isPending;
   const status: AppStatus = demo.isDemo
     ? demo.scenario === 'unconnected'
       ? 'CONNECT_YOUTUBE'
@@ -155,10 +197,10 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
       : !auth.user
         ? 'SIGNED_OUT'
         : busy
-          ? connectMutation.isPending
+          ? addAccountMutation.isPending || reconnectMutation.isPending
             ? 'AUTHORIZING'
             : 'SYNCING'
-          : connectionStatus(connection, Boolean(data));
+          : connectionStatus(selectedConnection, Boolean(data));
   const isInitializing =
     !demo.isDemo && (auth.isLoading || (Boolean(auth.user) && cloud.isLoading));
   const theme = data?.metadata.themePreference ?? 'system';
@@ -170,26 +212,34 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
       demo.isDemo ||
       !auth.user ||
       !data ||
-      !connection ||
-      connection.status !== 'CONNECTED' ||
+      !selectedConnection ||
+      selectedConnection.status !== 'CONNECTED' ||
       syncMutation.isPending
     ) {
       return;
     }
-    const lastSync = connection.last_synced_at
-      ? new Date(connection.last_synced_at).getTime()
+    const lastSync = selectedConnection.last_synced_at
+      ? new Date(selectedConnection.last_synced_at).getTime()
       : 0;
     const stale =
       !Number.isFinite(lastSync) || Date.now() - lastSync >= 15 * 60 * 1_000;
-    const key = `${auth.user.id}:${connection.last_synced_at ?? 'never'}`;
+    const key = `${auth.user.id}:${selectedConnection.id}:${selectedConnection.last_synced_at ?? 'never'}`;
     if (!stale || backgroundSyncKey.current === key) return;
     backgroundSyncKey.current = key;
     syncMutation.mutate({ channelId: data.channel.channelId, manual: false });
-  }, [auth.user, connection, data, demo.isDemo, options.backgroundSync, syncMutation]);
+  }, [
+    auth.user,
+    data,
+    demo.isDemo,
+    options.backgroundSync,
+    selectedConnection,
+    syncMutation,
+  ]);
 
   const mutationError =
     signInMutation.error ??
-    connectMutation.error ??
+    addAccountMutation.error ??
+    reconnectMutation.error ??
     syncMutation.error ??
     channelMutation.error ??
     disconnectMutation.error ??
@@ -231,7 +281,9 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     status,
     syncStage: status === 'SYNCING' ? ('CONNECTING' as SyncStage) : null,
     data,
-    connection,
+    connections,
+    selectedConnection,
+    channels,
     warnings,
     error,
     pendingChannels,
@@ -242,17 +294,20 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     newMilestone,
     signIn: async () => signInMutation.mutateAsync(),
     signOut: auth.signOut,
-    connect: async () => {
-      if (!demo.isDemo) await connectMutation.mutateAsync();
+    addYouTubeAccount: async () => {
+      if (!demo.isDemo) await addAccountMutation.mutateAsync();
+    },
+    reconnectYouTubeAccount: async (connectionId: string) => {
+      if (!demo.isDemo) await reconnectMutation.mutateAsync(connectionId);
     },
     refresh: async () => {
       if (!demo.isDemo)
         await syncMutation.mutateAsync({ channelId: data?.channel.channelId });
     },
     chooseChannel: async (channelId: string) => channelMutation.mutateAsync(channelId),
-    disconnect: async () => {
+    disconnectYouTubeAccount: async (connectionId: string) => {
       if (demo.isDemo) demo.exitDemo();
-      else await disconnectMutation.mutateAsync();
+      else await disconnectMutation.mutateAsync(connectionId);
     },
     deleteAccount: async () => deleteAccountMutation.mutateAsync(),
     setTheme: async (nextTheme: ThemePreference) => {
