@@ -50,7 +50,10 @@ export type Database = {
       >;
       youtube_connections: Table<
         Timestamps & {
+          id: string;
           user_id: string;
+          google_subject: string;
+          google_email: string | null;
           status:
             | 'CONNECTED'
             | 'SYNCING'
@@ -69,7 +72,10 @@ export type Database = {
           granted_scopes: string[];
         },
         {
+          id?: string;
           user_id: string;
+          google_subject: string;
+          google_email?: string | null;
           status?:
             | 'CONNECTED'
             | 'SYNCING'
@@ -90,6 +96,8 @@ export type Database = {
           updated_at?: string;
         },
         {
+          google_subject?: string;
+          google_email?: string | null;
           status?:
             | 'CONNECTED'
             | 'SYNCING'
@@ -109,19 +117,21 @@ export type Database = {
         }
       >;
       youtube_token_vault: Table<
-        Timestamps & { user_id: string; secret_id: string },
+        Timestamps & { connection_id: string; user_id: string; secret_id: string },
         {
+          connection_id: string;
           user_id: string;
           secret_id: string;
           created_at?: string;
           updated_at?: string;
         },
-        { secret_id?: string; updated_at?: string }
+        { user_id?: string; secret_id?: string; updated_at?: string }
       >;
       channels: Table<
         Timestamps & {
           id: string;
           user_id: string;
+          connection_id: string;
           youtube_channel_id: string;
           title: string;
           thumbnail_url: string;
@@ -138,6 +148,7 @@ export type Database = {
         {
           id?: string;
           user_id: string;
+          connection_id: string;
           youtube_channel_id: string;
           title: string;
           thumbnail_url?: string;
@@ -407,6 +418,8 @@ export type Database = {
           user_id: string;
           state_hash: string;
           code_verifier: string;
+          intent: 'ADD' | 'RECONNECT';
+          target_connection_id: string | null;
           created_at: string;
           expires_at: string;
           used_at: string | null;
@@ -416,16 +429,23 @@ export type Database = {
           user_id: string;
           state_hash: string;
           code_verifier: string;
+          intent?: 'ADD' | 'RECONNECT';
+          target_connection_id?: string | null;
           created_at?: string;
           expires_at: string;
           used_at?: string | null;
         },
-        { used_at?: string | null }
+        {
+          intent?: 'ADD' | 'RECONNECT';
+          target_connection_id?: string | null;
+          used_at?: string | null;
+        }
       >;
       data_deletion_requests: Table<
         {
           id: string;
           user_id: string;
+          connection_id: string | null;
           type: 'YOUTUBE_DISCONNECT' | 'ACCOUNT_DELETE' | 'COMPLIANCE_REVOKED';
           status:
             'PENDING' | 'RUNNING' | 'COMPLETE' | 'FAILED_RETRYABLE' | 'FAILED_FINAL';
@@ -440,6 +460,7 @@ export type Database = {
         {
           id?: string;
           user_id: string;
+          connection_id?: string | null;
           type: 'YOUTUBE_DISCONNECT' | 'ACCOUNT_DELETE' | 'COMPLIANCE_REVOKED';
           status?:
             'PENDING' | 'RUNNING' | 'COMPLETE' | 'FAILED_RETRYABLE' | 'FAILED_FINAL';
@@ -459,6 +480,7 @@ export type Database = {
           last_error?: string | null;
           attempts?: number;
           claim_id?: string | null;
+          connection_id?: string | null;
         }
       >;
     };
@@ -469,6 +491,7 @@ export type Database = {
         Returns: {
           id: string;
           user_id: string;
+          connection_id: string | null;
           type: 'YOUTUBE_DISCONNECT' | 'ACCOUNT_DELETE' | 'COMPLIANCE_REVOKED';
           requested_at: string;
           attempts: number;
@@ -478,6 +501,7 @@ export type Database = {
       claim_due_compliance_connections: {
         Args: { p_batch_size: number; p_claim_id: string };
         Returns: {
+          connection_id: string;
           user_id: string;
           status: 'CONNECTED' | 'SYNCING';
           last_authorization_verified_at: string | null;
@@ -487,19 +511,45 @@ export type Database = {
         }[];
       };
       claim_youtube_sync: {
-        Args: { p_user_id: string; p_manual?: boolean };
+        Args: {
+          p_connection_id: string;
+          p_user_id: string;
+          p_manual?: boolean;
+        };
         Returns: string;
+      };
+      complete_youtube_oauth_connection: {
+        Args: {
+          p_user_id: string;
+          p_intent: 'ADD' | 'RECONNECT';
+          p_target_connection_id: string | null;
+          p_google_subject: string;
+          p_google_email: string | null;
+          p_refresh_token: string;
+          p_granted_scopes: string[];
+          p_channels: Json;
+        };
+        Returns: Json;
       };
       consume_youtube_oauth_attempt: {
         Args: { p_state_hash: string };
-        Returns: { user_id: string; code_verifier: string }[];
+        Returns: {
+          user_id: string;
+          code_verifier: string;
+          intent: 'ADD' | 'RECONNECT';
+          target_connection_id: string | null;
+        }[];
       };
       delete_youtube_refresh_token: {
-        Args: { p_user_id: string };
+        Args: { p_connection_id: string; p_user_id: string };
         Returns: boolean;
       };
       finish_youtube_sync: {
-        Args: { p_user_id: string; p_error_code?: string | null };
+        Args: {
+          p_connection_id: string;
+          p_user_id: string;
+          p_error_code?: string | null;
+        };
         Returns: undefined;
       };
       install_tubemilestones_cron_jobs: {
@@ -511,12 +561,20 @@ export type Database = {
         Returns: undefined;
       };
       read_youtube_refresh_token: {
-        Args: { p_user_id: string };
+        Args: { p_connection_id: string; p_user_id: string };
         Returns: string | null;
       };
       store_youtube_refresh_token: {
-        Args: { p_user_id: string; p_refresh_token: string };
+        Args: {
+          p_connection_id: string;
+          p_user_id: string;
+          p_refresh_token: string;
+        };
         Returns: string;
+      };
+      upsert_youtube_connection_channels: {
+        Args: { p_user_id: string; p_connection_id: string; p_channels: Json };
+        Returns: Database['public']['Tables']['channels']['Row'][];
       };
     };
     Enums: { [_ in never]: never };

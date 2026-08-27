@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "backend:lint": "deno lint supabase/functions",
     "backend:check": "deno check supabase/functions/youtube-oauth-start/index.ts supabase/functions/youtube-oauth-callback/index.ts supabase/functions/youtube-sync/index.ts supabase/functions/history-query/index.ts supabase/functions/disconnect-youtube/index.ts supabase/functions/delete-account/index.ts supabase/functions/compliance-revalidate/index.ts supabase/functions/deletion-worker/index.ts",
-    "db:lint": "supabase db lint --local --level warning --fail-on error",
+    "db:lint": "supabase db lint --local --schema public --level warning --fail-on error",
     "db:test": "supabase test db --local",
     "audit:bundle": "node scripts/audit-production-bundle.mjs",
     "format": "prettier --write .",

@@ -8,6 +8,7 @@ test-results/
 .env.local
 .env.*.local
 supabase/.temp/
+supabase/.branches/
 
 # Editors and operating systems
 .idea/

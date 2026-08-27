@@ -19,6 +19,10 @@ const workerClaims = readFileSync(
   resolve('supabase/migrations/20260826120300_atomic_worker_claims.sql'),
   'utf8',
 );
+const multiAccount = readFileSync(
+  resolve('supabase/migrations/20260827120000_multi_youtube_accounts.sql'),
+  'utf8',
+);
 const tables = [
   'profiles',
   'youtube_connections',
@@ -106,12 +110,12 @@ describe('database security migration', () => {
   });
 
   it('revokes Vault helper execution from public browser roles', () => {
-    expect(helpers).toContain(
-      'revoke execute on function public.read_youtube_refresh_token(uuid)',
+    expect(multiAccount).toContain(
+      'revoke execute on function public.read_youtube_refresh_token(uuid, uuid)',
     );
-    expect(helpers).toContain('from public, anon, authenticated;');
-    expect(helpers).toContain(
-      'grant execute on function public.read_youtube_refresh_token(uuid) to service_role;',
+    expect(multiAccount).toContain('from public, anon, authenticated;');
+    expect(multiAccount).toContain(
+      'grant execute on function public.read_youtube_refresh_token(uuid, uuid)',
     );
   });
 
@@ -123,37 +127,60 @@ describe('database security migration', () => {
     expect(connectionDefinition).not.toMatch(/refresh_token/iu);
   });
 
-  it('atomically associates OAuth state and sync claims with the stored user', () => {
-    expect(helpers).toContain('update public.youtube_oauth_attempts attempt');
-    expect(helpers).toContain('returning attempt.user_id, attempt.code_verifier');
-    expect(helpers).toContain('from public.youtube_connections');
-    expect(helpers).toContain('where user_id = p_user_id\n  for update;');
+  it('atomically associates OAuth state and sync claims with the exact connection', () => {
+    expect(multiAccount).toContain('update public.youtube_oauth_attempts attempt');
+    expect(multiAccount).toContain('attempt.target_connection_id');
+    expect(multiAccount).toContain(
+      'create or replace function public.claim_youtube_sync(\n  p_connection_id uuid,\n  p_user_id uuid',
+    );
+    expect(multiAccount).toContain('where connection.id = p_connection_id');
+    expect(multiAccount).toContain('and connection.user_id = p_user_id\n  for update;');
+    expect(multiAccount).toContain(
+      'create or replace function public.complete_youtube_oauth_connection(',
+    );
+  });
+
+  it('binds Google identities, channels, and Vault mappings to owned connections', () => {
+    expect(multiAccount).toContain(
+      'youtube_connections_user_subject_key unique (user_id, google_subject)',
+    );
+    expect(multiAccount).toContain(
+      'foreign key (user_id, connection_id)\n    references public.youtube_connections(user_id, id)',
+    );
+    expect(multiAccount).toContain(
+      'add constraint youtube_token_vault_pkey primary key (connection_id)',
+    );
+    expect(multiAccount).toContain(
+      'where public.channels.connection_id = excluded.connection_id',
+    );
   });
 
   it('keeps compliance and deletion queue claims atomic and server-only', () => {
+    const effectiveWorkerClaims = `${workerClaims}\n${multiAccount}`;
     for (const functionName of [
       'claim_due_compliance_connections',
       'claim_deletion_requests',
     ]) {
-      expect(workerClaims).toContain(
+      expect(effectiveWorkerClaims).toContain(
         `create or replace function public.${functionName}`,
       );
-      expect(workerClaims).toMatch(
+      expect(multiAccount).toMatch(
         new RegExp(
           `revoke execute on function public\\.${functionName}\\(integer, uuid\\)[\\s\\S]+?from public, anon, authenticated`,
           'u',
         ),
       );
-      expect(workerClaims).toContain(
+      expect(multiAccount).toContain(
         `grant execute on function public.${functionName}(integer, uuid)`,
       );
     }
-    expect(workerClaims.match(/for update skip locked/gu)).toHaveLength(2);
-    expect(workerClaims).toContain('last_authorization_verified_at asc nulls first');
-    expect(workerClaims).toContain(
+    expect(multiAccount.match(/for update skip locked/gu)).toHaveLength(2);
+    expect(multiAccount).toContain('last_authorization_verified_at asc nulls first');
+    expect(multiAccount).toContain('connection_id uuid,');
+    expect(multiAccount).toContain(
       "verification_claimed_at <= now() - interval '10 minutes'",
     );
-    expect(workerClaims).toContain("started_at <= now() - interval '15 minutes'");
+    expect(multiAccount).toContain("started_at <= now() - interval '15 minutes'");
   });
 
   it('separates public Supabase routing from the private automation header', () => {

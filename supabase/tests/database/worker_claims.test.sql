@@ -60,27 +60,42 @@ values
   ('10000000-0000-4000-8000-000000000004', 'claim-4@example.test', '{}');
 
 insert into public.youtube_connections (
+  id,
   user_id,
+  google_subject,
   status,
   last_authorization_verified_at,
   last_verification_attempt_at
 )
 values
-  ('10000000-0000-4000-8000-000000000001', 'CONNECTED', null, null),
   (
+    '11000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    'google-subject-1',
+    'CONNECTED',
+    null,
+    null
+  ),
+  (
+    '11000000-0000-4000-8000-000000000002',
     '10000000-0000-4000-8000-000000000002',
+    'google-subject-2',
     'CONNECTED',
     now() - interval '31 days',
     null
   ),
   (
+    '11000000-0000-4000-8000-000000000003',
     '10000000-0000-4000-8000-000000000003',
+    'google-subject-3',
     'CONNECTED',
     now() - interval '25 days',
     null
   ),
   (
+    '11000000-0000-4000-8000-000000000004',
     '10000000-0000-4000-8000-000000000004',
+    'google-subject-4',
     'CONNECTED',
     now() - interval '24 days',
     null
@@ -168,6 +183,7 @@ select is(
 insert into public.data_deletion_requests (
   id,
   user_id,
+  connection_id,
   type,
   status,
   requested_at,
@@ -179,6 +195,7 @@ values
   (
     '30000000-0000-4000-8000-000000000001',
     '10000000-0000-4000-8000-000000000001',
+    '11000000-0000-4000-8000-000000000001',
     'YOUTUBE_DISCONNECT',
     'PENDING',
     now() - interval '3 days',
@@ -189,6 +206,7 @@ values
   (
     '30000000-0000-4000-8000-000000000002',
     '10000000-0000-4000-8000-000000000002',
+    null,
     'ACCOUNT_DELETE',
     'RUNNING',
     now() - interval '4 days',
@@ -199,6 +217,7 @@ values
   (
     '30000000-0000-4000-8000-000000000003',
     '10000000-0000-4000-8000-000000000003',
+    '11000000-0000-4000-8000-000000000003',
     'COMPLIANCE_REVOKED',
     'RUNNING',
     now() - interval '2 days',
