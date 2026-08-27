@@ -1,10 +1,12 @@
-import { useId, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
+  YAxis,
   type TooltipContentProps,
 } from 'recharts';
 import { summarizeAnalyticsRange } from '../../domain/analytics/calculations';
@@ -63,7 +65,6 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState<AnalyticsRange>('28D');
   const [metric, setMetric] = useState<AnalyticsMetric>('views');
   const history = useAnalyticsHistory(data, range, isDemo);
-  const gradientId = useId().replaceAll(':', '');
   const rangeDays =
     range === 'ALL' ? Math.max(1, history.rows.length) : Number.parseInt(range, 10);
   const summary = useMemo(
@@ -171,12 +172,43 @@ export default function AnalyticsPage() {
       ) : (
         <>
           <section className="analytics-focus" aria-labelledby="analytics-value-title">
-            <div className="analytics-value">
-              <span id="analytics-value-title">
-                {range === 'ALL' ? 'Available history' : `${rangeLabel} total`}
-              </span>
-              <strong>{metricValue(summary.total, metric, true)}</strong>
-              <p>{comparison}</p>
+            <div className="analytics-summary-row">
+              <div className="analytics-value">
+                <span id="analytics-value-title">
+                  {range === 'ALL' ? 'Available history' : `${rangeLabel} total`}
+                </span>
+                <strong>{metricValue(summary.total, metric, true)}</strong>
+                <p>{comparison}</p>
+              </div>
+              <dl className="analytics-details" aria-label="Analytics summary">
+                <div>
+                  <dt>Net subscribers</dt>
+                  <dd>
+                    {overview.subscribers >= 0 ? '+' : ''}
+                    {formatFullNumber(overview.subscribers)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Watch time</dt>
+                  <dd>{formatCompactNumber(overview.watchHours)}h</dd>
+                </div>
+                <div>
+                  <dt>Best day</dt>
+                  <dd>
+                    {overview.bestDay
+                      ? formatReportingDay(overview.bestDay.day)
+                      : 'Unavailable'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Analytics through</dt>
+                  <dd>
+                    {availableThrough
+                      ? formatReportingDay(availableThrough)
+                      : 'Unavailable'}
+                  </dd>
+                </div>
+              </dl>
             </div>
             <div
               className={`analytics-chart${history.isLoading ? ' is-loading' : ''}`}
@@ -191,22 +223,13 @@ export default function AnalyticsPage() {
               >
                 <AreaChart
                   data={chartData}
-                  margin={{ top: 18, right: 4, bottom: 0, left: 4 }}
+                  margin={{ top: 12, right: 8, bottom: 0, left: 0 }}
                 >
-                  <defs>
-                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor="var(--tm-primary)"
-                        stopOpacity={0.28}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="var(--tm-primary)"
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
+                  <CartesianGrid
+                    vertical={false}
+                    stroke="var(--color-border)"
+                    strokeDasharray="2 6"
+                  />
                   <XAxis
                     dataKey="day"
                     axisLine={false}
@@ -217,14 +240,26 @@ export default function AnalyticsPage() {
                       formatReportingDay(day, { month: 'short', day: 'numeric' })
                     }
                   />
-                  <Tooltip content={ChartTooltip} isAnimationActive={false} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    width={42}
+                    tick={{ fill: 'var(--tm-text-muted)', fontSize: 10 }}
+                    tickFormatter={(value: number) => metricValue(value, metric, true)}
+                  />
+                  <Tooltip
+                    content={ChartTooltip}
+                    cursor={{ stroke: 'var(--color-border-strong)', strokeWidth: 1 }}
+                    isAnimationActive={false}
+                  />
                   <Area
                     type="monotone"
                     dataKey="value"
                     name={metric}
                     stroke="var(--tm-primary-strong)"
-                    strokeWidth={2.5}
-                    fill={`url(#${gradientId})`}
+                    strokeWidth={2}
+                    fill="var(--color-accent)"
+                    fillOpacity={0.08}
                     dot={false}
                     activeDot={{ r: 4, fill: 'var(--tm-milestone)', strokeWidth: 0 }}
                     isAnimationActive={false}
@@ -233,36 +268,6 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </div>
           </section>
-
-          <dl className="analytics-details" aria-label="Analytics summary">
-            <div>
-              <dt>Net subscribers</dt>
-              <dd>
-                {overview.subscribers >= 0 ? '+' : ''}
-                {formatFullNumber(overview.subscribers)}
-              </dd>
-            </div>
-            <div>
-              <dt>Watch time</dt>
-              <dd>{formatCompactNumber(overview.watchHours)}h</dd>
-            </div>
-            <div>
-              <dt>Best day</dt>
-              <dd>
-                {overview.bestDay
-                  ? formatReportingDay(overview.bestDay.day)
-                  : 'Unavailable'}
-              </dd>
-            </div>
-            <div>
-              <dt>Analytics through</dt>
-              <dd>
-                {availableThrough
-                  ? formatReportingDay(availableThrough)
-                  : 'Unavailable'}
-              </dd>
-            </div>
-          </dl>
 
           <p className="analytics-accessible-summary">
             {rangeLabel} total: {metricValue(summary.total, metric)}{' '}

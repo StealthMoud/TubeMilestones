@@ -223,6 +223,12 @@ test('zero-channel settings keep the complete account surface usable', async ({
   const dialog = page.getByRole('dialog', {
     name: 'Delete TubeMilestones account?',
   });
+  const closeDialog = dialog.getByRole('button', { name: 'Close dialog' });
+  await expect(closeDialog).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(closeDialog).toBeFocused();
   await expect(dialog).toContainText(
     'It does not delete anything from YouTube itself.',
   );
@@ -296,17 +302,69 @@ test('connected Home is milestone-first', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '1K' })).toBeVisible();
   await expect(page.getByText('258 subscribers to go')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Recent movement' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Journey checkpoints' }),
+  ).toBeVisible();
+  await expect(page.getByText('Achieved')).toHaveCount(2);
+  await expect(page.getByText('Later', { exact: true })).toHaveCount(0);
+  const mobileNavigation = page.locator('.mobile-navigation-wrap');
+  await expect(mobileNavigation).toBeVisible();
+  const touchTargets = await mobileNavigation.locator('a').evaluateAll((links) =>
+    links.map((link) => {
+      const box = link.getBoundingClientRect();
+      return { width: box.width, height: box.height };
+    }),
+  );
+  for (const target of touchTargets) {
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+  }
   await expectNoHorizontalOverflow(page);
 });
 
-test('Journey uses one differentiated path and switches metrics', async ({ page }) => {
+test('Journey shows achieved history without future tiers and switches metrics', async ({
+  page,
+}) => {
+  await page.goto('/#/journey?demo=small');
+  await expect(page.getByRole('heading', { name: 'Next milestone' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Milestones achieved' }),
+  ).toBeVisible();
+  await expect(page.getByText('2.5K', { exact: true })).toHaveCount(0);
+  const exportButton = page.getByRole('button', {
+    name: /Export 500 subscribers milestone as an image/,
+  });
+  await expect(exportButton).toBeVisible();
+  const exportSize = await exportButton.evaluate((button) => {
+    const box = button.getBoundingClientRect();
+    return { width: box.width, height: box.height };
+  });
+  expect(exportSize.width).toBeGreaterThanOrEqual(44);
+  expect(exportSize.height).toBeGreaterThanOrEqual(44);
+
   await page.goto('/#/journey?demo=growing');
+  await page.reload();
   await expect(
     page.getByRole('heading', { name: 'Your milestone journey.' }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Views' }).click();
   await expect(page.getByText('1.82M now')).toBeVisible();
   await expect(page.getByText('Next checkpoint')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Persian channel names keep natural text direction and large values stay safe', async ({
+  page,
+}) => {
+  await page.goto('/#/?demo=persian');
+  const persianHeading = page.getByRole('heading', { name: 'آخه چرا؟' });
+  await expect(persianHeading).toHaveAttribute('dir', 'auto');
+  await expect(page.getByText('75 subscribers to go')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto('/#/?demo=large');
+  await page.reload();
+  await expect(page.locator('.milestone-hero__value strong')).toHaveText('1.23M');
   await expectNoHorizontalOverflow(page);
 });
 
@@ -344,7 +402,9 @@ test('Settings is grouped and confirms disconnect semantics', async ({ page }) =
   await expect(page.getByText('User entered')).toBeVisible();
   await expect(page.getByText('Used only to sign into TubeMilestones.')).toBeVisible();
   await expect(
-    page.getByText('youtube-owner@example.com', { exact: true }),
+    page
+      .getByLabel('Connected YouTube accounts')
+      .getByText('youtube-owner@example.com', { exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Disconnect' }).click();
   const dialog = page.getByRole('dialog', {
@@ -364,8 +424,7 @@ test('reauthorization and typed API errors stay contextual', async ({ page }) =>
   await expect(
     page.getByRole('button', { name: 'Reconnect', exact: true }),
   ).toBeVisible();
-  await page.goto('/#/?demo=api-error');
-  await page.reload();
+  await page.goto('/?scenario=api-error#/?demo=api-error');
   await expect(
     page.getByText('YouTube data is temporarily unavailable.'),
   ).toBeVisible();

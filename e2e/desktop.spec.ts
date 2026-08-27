@@ -77,7 +77,11 @@ test('desktop Home and Journey use the sidebar composition without overflow', as
   await page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel').click();
   await expect(page.getByText(/youtube-owner@example\.com/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add YouTube account' })).toBeVisible();
-  await page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.channel-switcher__panel')).toBeHidden();
+  await expect(
+    page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel'),
+  ).toBeFocused();
 
   await page.getByLabel('TubeMilestones profile: Demo creator').click();
   const profileMenu = page.locator('.profile-menu__panel');
@@ -88,6 +92,9 @@ test('desktop Home and Journey use the sidebar composition without overflow', as
   await expect(
     profileMenu.getByRole('button', { name: 'Add YouTube account' }),
   ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(profileMenu).toBeHidden();
+  await expect(page.getByLabel('TubeMilestones profile: Demo creator')).toBeFocused();
 
   await page.getByRole('link', { name: 'Journey', exact: true }).click();
 
@@ -95,6 +102,31 @@ test('desktop Home and Journey use the sidebar composition without overflow', as
     page.getByRole('heading', { name: 'Your milestone journey.' }),
   ).toBeVisible();
 
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Journey keeps one next checkpoint, shows history, and exports a PNG', async ({
+  page,
+}) => {
+  await page.goto('/#/journey?demo=small');
+
+  await expect(page.getByRole('heading', { name: 'Next milestone' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Milestones achieved' }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: '500 subscribers' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '100 subscribers' })).toBeVisible();
+  await expect(page.getByText('2.5K', { exact: true })).toHaveCount(0);
+
+  const exportButtons = page.getByRole('button', {
+    name: /Export .* milestone as an image/,
+  });
+  await expect(exportButtons).toHaveCount(2);
+  const downloadPromise = page.waitForEvent('download');
+  await exportButtons.first().click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^tubemilestones-.+\.png$/u);
+  expect(await download.path()).not.toBeNull();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -129,4 +161,19 @@ test('responsive matrix is overflow-free in dark and light themes', async ({
   await page.getByRole('link', { name: 'Analytics', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Views' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('primary screens render without browser console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  for (const route of ['/', '/journey', '/analytics', '/settings']) {
+    await page.goto(`/#${route}?demo=small&screen=${route.slice(1) || 'home'}`);
+    await expect(page.locator('main')).toBeVisible();
+  }
+
+  expect(errors).toEqual([]);
 });

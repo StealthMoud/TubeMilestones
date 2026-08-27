@@ -2,10 +2,10 @@ import { useState, type FormEvent } from 'react';
 import {
   Check,
   Circle,
+  Download,
   ExternalLink,
   Flag,
   Plus,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useTubeMilestones } from '../../hooks/useTubeMilestones';
@@ -23,10 +23,13 @@ import type {
 import {
   formatCompactNumber,
   formatFullNumber,
+  formatPercent,
+  formatRemaining,
   metricLabel,
 } from '../../domain/metrics/format';
 import { formatReportingDay } from '../../domain/metrics/dates';
 import { channelMetricValue } from '../../domain/metrics/currentValue';
+import { exportMilestoneImage } from './exportMilestoneImage';
 
 function formatObservedAt(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -109,6 +112,7 @@ export default function JourneyPage() {
   const [targetDate, setTargetDate] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   if (!data) return null;
 
@@ -116,15 +120,34 @@ export default function JourneyPage() {
   const subscriberPrecision: SubscriberPrecision =
     metric === 'subscribers' ? data.channel.subscriberCountPrecision : 'EXACT';
   const standardDefinitions = definitionsFor(metric);
-  const nextTarget = standardDefinitions.find(
+  const nextDefinition = standardDefinitions.find(
     ({ target: candidate }) => value !== null && candidate > value,
-  )?.target;
+  );
+  const nextTarget = nextDefinition?.target;
+  const achievedDefinitions =
+    value === null
+      ? []
+      : standardDefinitions
+          .filter(({ target: candidate }) => candidate <= value)
+          .reverse();
+  const achievedCurrentValue = value ?? 0;
+  const nextIndex = standardDefinitions.findIndex(
+    ({ target: candidate }) => value !== null && candidate > value,
+  );
+  const previousTarget =
+    nextIndex > 0 ? (standardDefinitions[nextIndex - 1]?.target ?? 0) : 0;
+  const segmentProgress =
+    value !== null && nextTarget !== undefined
+      ? Math.min(
+          1,
+          Math.max(0, (value - previousTarget) / (nextTarget - previousTarget)),
+        )
+      : null;
   const stateByTarget = new Map(
     data.milestoneStates
       .filter((state) => state.metric === metric)
       .map((state) => [state.target, state]),
   );
-  const metricUnavailable = value === null;
 
   const resetGoalForm = () => {
     setTitle('');
@@ -194,204 +217,301 @@ export default function JourneyPage() {
 
       <MetricSelector value={metric} onChange={setMetric} />
 
-      <section className="journey-trail-panel" aria-labelledby="standard-trail-title">
-        <div className="section-heading-inline journey-trail-panel__heading">
-          <div>
-            <p>{metricLabel(metric)}</p>
-            <h2 id="standard-trail-title">Standard checkpoints</h2>
-          </div>
-          {value !== null ? (
-            <span>
-              {subscriberPrecision === 'ROUNDED_THREE_SIGNIFICANT_FIGURES'
-                ? 'About '
-                : ''}
-              {formatCompactNumber(value)} now
-            </span>
-          ) : null}
-        </div>
+      <div className="journey-layout">
+        <div className="journey-primary">
+          <section className="journey-upcoming" aria-labelledby="upcoming-title">
+            <div className="section-heading-inline journey-section-heading">
+              <div>
+                <p>{metricLabel(metric)}</p>
+                <h2 id="upcoming-title">Next milestone</h2>
+              </div>
+              {value !== null ? (
+                <span>
+                  {subscriberPrecision === 'ROUNDED_THREE_SIGNIFICANT_FIGURES'
+                    ? 'About '
+                    : ''}
+                  {formatCompactNumber(value)} now
+                </span>
+              ) : null}
+            </div>
 
-        {metricUnavailable ? (
-          <div className="journey-empty">
-            <Circle size={30} strokeWidth={1.5} aria-hidden="true" />
-            <h3>
-              {metric === 'subscribers'
-                ? 'Subscriber count is hidden.'
-                : 'This metric is not available yet.'}
-            </h3>
-            <p>
-              {metric === 'subscribers'
-                ? 'YouTube does not expose a count for this channel, so subscriber progress cannot be calculated.'
-                : "Analytics isn't available yet. Your other channel milestones still work normally."}
-            </p>
-          </div>
-        ) : (
-          <ol className="journey-trail">
-            {standardDefinitions.map((definition, index) => {
-              const achieved = definition.target <= value;
-              const next = definition.target === nextTarget;
-              const state = stateByTarget.get(definition.target);
-              const stateName = achieved ? 'achieved' : next ? 'next' : 'future';
-              return (
-                <li
-                  key={definition.target}
-                  className={`journey-node journey-node--${stateName}`}
-                >
-                  <span className="journey-node__rail" aria-hidden="true">
-                    <i>
-                      {achieved ? (
-                        <Check size={16} strokeWidth={2.4} />
-                      ) : next ? (
-                        <Flag size={15} strokeWidth={2} />
-                      ) : null}
-                    </i>
-                    {index < standardDefinitions.length - 1 ? <b /> : null}
+            {value === null ? (
+              <div className="journey-empty">
+                <Circle size={24} strokeWidth={1.5} aria-hidden="true" />
+                <h3>
+                  {metric === 'subscribers'
+                    ? 'Subscriber count is hidden.'
+                    : 'This metric is not available yet.'}
+                </h3>
+                <p>
+                  {metric === 'subscribers'
+                    ? 'YouTube does not expose a count for this channel, so subscriber progress cannot be calculated.'
+                    : "Analytics isn't available yet. Your other channel milestones still work normally."}
+                </p>
+              </div>
+            ) : nextDefinition && segmentProgress !== null ? (
+              <article
+                className="journey-next"
+                role="progressbar"
+                aria-label={`Progress to ${formatFullNumber(nextDefinition.target)} ${metricLabel(metric)}`}
+                aria-valuemin={previousTarget}
+                aria-valuemax={nextDefinition.target}
+                aria-valuenow={value}
+              >
+                <div className="journey-next__target">
+                  <span className="journey-next__icon" aria-hidden="true">
+                    <Flag size={17} strokeWidth={2} />
                   </span>
-                  <div className="journey-node__body">
-                    <div>
-                      <strong>{formatCompactNumber(definition.target)}</strong>
-                      <span>{metricLabel(metric)}</span>
-                    </div>
-                    <p>
-                      {achieved
-                        ? historyLabel(state)
-                        : next
-                          ? 'Next checkpoint'
-                          : 'Future checkpoint'}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+                  <span>
+                    <small>Next checkpoint</small>
+                    <strong>{formatCompactNumber(nextDefinition.target)}</strong>
+                    <b>{metricLabel(metric)}</b>
+                  </span>
+                </div>
+                <div className="journey-next__current">
+                  <span>Current</span>
+                  <strong>{formatCompactNumber(value)}</strong>
+                  <small>/ {formatCompactNumber(nextDefinition.target)}</small>
+                </div>
+                <div className="journey-next__track" aria-hidden="true">
+                  <span style={{ width: `${segmentProgress * 100}%` }} />
+                </div>
+                <div className="journey-next__footer">
+                  <strong>
+                    {formatRemaining(
+                      Math.max(0, nextDefinition.target - value),
+                      metric,
+                      subscriberPrecision,
+                    )}
+                  </strong>
+                  <span>{formatPercent(segmentProgress)} through this segment</span>
+                </div>
+              </article>
+            ) : (
+              <div className="journey-complete">
+                <Check size={20} aria-hidden="true" />
+                <span>
+                  <strong>Highest configured milestone achieved.</strong>
+                  <small>Your completed milestones are listed below.</small>
+                </span>
+              </div>
+            )}
 
-        {subscriberPrecision === 'ROUNDED_THREE_SIGNIFICANT_FIGURES' ? (
-          <p className="journey-precision-note">
-            YouTube reports this subscriber count with three significant figures.
-            Position and remaining distance are approximate.
-          </p>
-        ) : null}
-      </section>
+            {subscriberPrecision === 'ROUNDED_THREE_SIGNIFICANT_FIGURES' ? (
+              <p className="journey-precision-note">
+                YouTube reports this subscriber count with three significant figures.
+                Remaining distance is approximate.
+              </p>
+            ) : null}
+          </section>
 
-      <section className="custom-goals" aria-labelledby="custom-goals-title">
-        <div className="section-heading-inline">
-          <div>
-            <p>Your targets</p>
-            <h2 id="custom-goals-title">Custom checkpoints</h2>
-          </div>
-          <Button variant="quiet" icon={<Plus size={17} />} onClick={openGoalDialog}>
-            Add
-          </Button>
+          <section className="journey-achieved" aria-labelledby="achieved-title">
+            <div className="section-heading-inline journey-section-heading">
+              <div>
+                <p>History</p>
+                <h2 id="achieved-title">Milestones achieved</h2>
+              </div>
+              <span>
+                {achievedDefinitions.length}{' '}
+                {achievedDefinitions.length === 1 ? 'milestone' : 'milestones'}
+              </span>
+            </div>
+            {achievedDefinitions.length === 0 ? (
+              <div className="journey-empty journey-empty--compact">
+                <Circle size={22} strokeWidth={1.5} aria-hidden="true" />
+                <h3>Your first milestone will appear here.</h3>
+                <p>Only achieved milestones are kept in this history.</p>
+              </div>
+            ) : (
+              <ol className="journey-achieved-list">
+                {achievedDefinitions.map((definition) => {
+                  const state = stateByTarget.get(definition.target);
+                  const observed = historyLabel(state);
+                  return (
+                    <li key={definition.target}>
+                      <span className="journey-achieved__mark" aria-hidden="true">
+                        <Check size={16} strokeWidth={2.4} />
+                      </span>
+                      <div className="journey-achieved__copy">
+                        <h3>
+                          {formatCompactNumber(definition.target)}{' '}
+                          <span>{metricLabel(metric)}</span>
+                        </h3>
+                        <p>{observed}</p>
+                        <small>
+                          Currently {formatFullNumber(achievedCurrentValue)}{' '}
+                          {metricLabel(metric)}
+                        </small>
+                      </div>
+                      <button
+                        className="milestone-export"
+                        type="button"
+                        title="Export milestone as a PNG image"
+                        aria-label={`Export ${formatFullNumber(definition.target)} ${metricLabel(metric)} milestone as an image`}
+                        onClick={() => {
+                          setExportError(null);
+                          void exportMilestoneImage({
+                            channelTitle: data.channel.title,
+                            metricLabel: metricLabel(metric),
+                            target: formatFullNumber(definition.target),
+                            observedLabel: observed,
+                            currentValue: `${formatFullNumber(achievedCurrentValue)} ${metricLabel(metric)}`,
+                          }).catch(() =>
+                            setExportError(
+                              'The milestone image could not be exported. Please try again.',
+                            ),
+                          );
+                        }}
+                      >
+                        <Download size={16} aria-hidden="true" />
+                        <span>Export image</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {exportError ? (
+              <p className="form-error" role="alert">
+                {exportError}
+              </p>
+            ) : null}
+          </section>
         </div>
-        {data.customGoals.length === 0 ? (
-          <button className="custom-goals-empty" type="button" onClick={openGoalDialog}>
-            <Sparkles size={24} strokeWidth={1.6} aria-hidden="true" />
-            <strong>Create your own checkpoint.</strong>
-            <span>Choose a metric, target and optional date.</span>
-          </button>
-        ) : (
-          <div className="custom-goal-grid">
-            {data.customGoals.map((goal) => {
-              const current = channelMetricValue(
-                data.channel,
-                data.analyticsSummary,
-                goal.metric,
-              );
-              const complete = current !== null && current >= goal.target;
-              const state = data.milestoneStates.find(
-                ({ customGoalId }) => customGoalId === goal.id,
-              );
-              return (
-                <article key={goal.id} className="custom-goal-card">
-                  <div className="custom-goal-card__topline">
-                    <span>{complete ? 'Complete' : 'Custom checkpoint'}</span>
-                    <button
-                      type="button"
-                      aria-label={`Delete ${goalTitle(goal)}`}
-                      onClick={() => void removeGoal(goal.id)}
-                    >
-                      <Trash2 size={17} aria-hidden="true" />
-                    </button>
-                  </div>
-                  <h3>{goalTitle(goal)}</h3>
-                  <p>
-                    {complete
-                      ? historyLabel(state)
-                      : current === null
-                        ? 'Current value unavailable'
-                        : `${formatCompactNumber(Math.max(0, goal.target - current))} remaining`}
-                  </p>
-                  {goal.targetDate ? (
-                    <small>
-                      Target date{' '}
-                      {formatReportingDay(goal.targetDate, {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </small>
-                  ) : (
-                    <small>No target date</small>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
-      <section className="ypp-guide" aria-labelledby="ypp-guide-title">
-        <div className="ypp-guide__heading">
-          <div>
-            <p className="page-heading__context">Manual guidance</p>
-            <h2 id="ypp-guide-title">YouTube Partner Program progress</h2>
-          </div>
-          <a href={YPP_POLICY.sourceUrl} target="_blank" rel="noopener noreferrer">
-            Current policy <ExternalLink size={15} aria-hidden="true" />
-          </a>
-        </div>
-        <p className="ypp-guide__intro">
-          Full ad-revenue reference: meet the subscriber target and either the public
-          watch-hours or Shorts views target. Thresholds and regional availability can
-          change.
-        </p>
-        <div className="ypp-guide__meters">
-          <GuidanceMeter
-            label="Subscribers"
-            value={data.channel.subscriberCount}
-            target={YPP_POLICY.full.subscriberTarget}
-            source="YouTube Data API"
-            approximate={
-              data.channel.subscriberCountPrecision ===
-              'ROUNDED_THREE_SIGNIFICANT_FIGURES'
-            }
-          />
-          <GuidanceMeter
-            label="Qualified public watch hours"
-            value={manualHours}
-            target={YPP_POLICY.full.qualifiedPublicWatchHoursTarget}
-            source="Manual value"
-          />
-          <GuidanceMeter
-            label="Qualified public Shorts views"
-            value={manualShorts}
-            target={YPP_POLICY.full.qualifiedShortsViewsTarget}
-            source="Manual value"
-          />
-        </div>
-        <p className="ypp-guide__note">
-          Enter the values shown in YouTube Studio. TubeMilestones cannot retrieve these
-          exact figures through the APIs it uses. {YPP_DISCLAIMER}
-        </p>
-        <small>
-          Policy reference {YPP_POLICY.version}. Earlier-access reference:{' '}
-          {formatCompactNumber(YPP_POLICY.expanded.subscriberTarget)} subscribers plus{' '}
-          {formatCompactNumber(YPP_POLICY.expanded.qualifiedPublicWatchHoursTarget)}{' '}
-          public watch hours or{' '}
-          {formatCompactNumber(YPP_POLICY.expanded.qualifiedShortsViewsTarget)} Shorts
-          views.
-        </small>
-      </section>
+        <aside className="journey-secondary" aria-label="Journey supporting tools">
+          <section className="custom-goals" aria-labelledby="custom-goals-title">
+            <div className="section-heading-inline">
+              <div>
+                <p>Your targets</p>
+                <h2 id="custom-goals-title">Custom checkpoints</h2>
+              </div>
+              <Button
+                variant="quiet"
+                icon={<Plus size={17} />}
+                onClick={openGoalDialog}
+              >
+                Add
+              </Button>
+            </div>
+            {data.customGoals.length === 0 ? (
+              <button
+                className="custom-goals-empty"
+                type="button"
+                onClick={openGoalDialog}
+              >
+                <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
+                <span>
+                  <strong>No custom checkpoints yet.</strong>
+                  <small>Choose a metric, target, and optional date.</small>
+                </span>
+              </button>
+            ) : (
+              <ul className="custom-goal-list">
+                {data.customGoals.map((goal) => {
+                  const current = channelMetricValue(
+                    data.channel,
+                    data.analyticsSummary,
+                    goal.metric,
+                  );
+                  const complete = current !== null && current >= goal.target;
+                  const state = data.milestoneStates.find(
+                    ({ customGoalId }) => customGoalId === goal.id,
+                  );
+                  return (
+                    <li key={goal.id} className="custom-goal-row">
+                      <div className="custom-goal-card__topline">
+                        <span>{complete ? 'Complete' : 'Custom checkpoint'}</span>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${goalTitle(goal)}`}
+                          onClick={() => void removeGoal(goal.id)}
+                        >
+                          <Trash2 size={17} aria-hidden="true" />
+                        </button>
+                      </div>
+                      <h3>{goalTitle(goal)}</h3>
+                      <p>
+                        {complete
+                          ? historyLabel(state)
+                          : current === null
+                            ? 'Current value unavailable'
+                            : `${formatCompactNumber(Math.max(0, goal.target - current))} remaining`}
+                      </p>
+                      {goal.targetDate ? (
+                        <small>
+                          Target date{' '}
+                          {formatReportingDay(goal.targetDate, {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </small>
+                      ) : (
+                        <small>No target date</small>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section className="ypp-guide" aria-labelledby="ypp-guide-title">
+            <div className="ypp-guide__heading">
+              <div>
+                <p className="page-heading__context">Manual guidance</p>
+                <h2 id="ypp-guide-title">YouTube Partner Program progress</h2>
+              </div>
+              <a href={YPP_POLICY.sourceUrl} target="_blank" rel="noopener noreferrer">
+                Current policy <ExternalLink size={15} aria-hidden="true" />
+              </a>
+            </div>
+            <p className="ypp-guide__intro">
+              Full ad-revenue reference: meet the subscriber target and either the
+              public watch-hours or Shorts views target. Thresholds and regional
+              availability can change.
+            </p>
+            <div className="ypp-guide__meters">
+              <GuidanceMeter
+                label="Subscribers"
+                value={data.channel.subscriberCount}
+                target={YPP_POLICY.full.subscriberTarget}
+                source="YouTube Data API"
+                approximate={
+                  data.channel.subscriberCountPrecision ===
+                  'ROUNDED_THREE_SIGNIFICANT_FIGURES'
+                }
+              />
+              <GuidanceMeter
+                label="Qualified public watch hours"
+                value={manualHours}
+                target={YPP_POLICY.full.qualifiedPublicWatchHoursTarget}
+                source="Manual value"
+              />
+              <GuidanceMeter
+                label="Qualified public Shorts views"
+                value={manualShorts}
+                target={YPP_POLICY.full.qualifiedShortsViewsTarget}
+                source="Manual value"
+              />
+            </div>
+            <p className="ypp-guide__note">
+              Enter the values shown in YouTube Studio. TubeMilestones cannot retrieve
+              these exact figures through the APIs it uses. {YPP_DISCLAIMER}
+            </p>
+            <small>
+              Policy reference {YPP_POLICY.version}. Earlier-access reference:{' '}
+              {formatCompactNumber(YPP_POLICY.expanded.subscriberTarget)} subscribers
+              plus{' '}
+              {formatCompactNumber(YPP_POLICY.expanded.qualifiedPublicWatchHoursTarget)}{' '}
+              public watch hours or{' '}
+              {formatCompactNumber(YPP_POLICY.expanded.qualifiedShortsViewsTarget)}{' '}
+              Shorts views.
+            </small>
+          </section>
+        </aside>
+      </div>
 
       <Modal
         open={goalDialogOpen}

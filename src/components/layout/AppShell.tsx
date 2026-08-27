@@ -6,7 +6,6 @@ import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { formatReportingDay } from '../../domain/metrics/dates';
 import { userMessageForError } from '../../services/errors';
 import { BrandMark } from '../common/BrandMark';
-import { ChannelAvatar } from '../common/ChannelAvatar';
 import { ChannelSwitcher } from '../common/ChannelSwitcher';
 import { ProfileMenu } from '../common/ProfileMenu';
 import { MilestoneCelebration } from '../feedback/MilestoneCelebration';
@@ -30,7 +29,7 @@ function MainNavigation() {
             `main-navigation__link${isActive ? ' is-active' : ''}`
           }
         >
-          <Icon size={21} strokeWidth={1.8} aria-hidden="true" />
+          <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
           <span>{label}</span>
         </NavLink>
       ))}
@@ -67,6 +66,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const needsAuthorization =
     status === 'REAUTH_REQUIRED' || status === 'COMPLIANCE_HOLD';
   const contextualError = warnings[0] ?? error;
+  const freshnessTitle = analyticsThrough
+    ? `Updated ${updated}. Analytics through ${formatReportingDay(analyticsThrough)}.`
+    : `Updated ${updated}.`;
   const reconnectSelected = () =>
     reconnectYouTubeAccount(selectedConnection?.id ?? data.channel.connectionId);
 
@@ -81,14 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>TubeMilestones</span>
         </NavLink>
         <MainNavigation />
-        <div className="sidebar-channel">
-          <ChannelAvatar
-            title={data.channel.title}
-            src={data.channel.thumbnailUrl}
-            size="small"
-          />
-          <span>{data.channel.title}</span>
-        </div>
+        <p className="sidebar-note">Read-only creator analytics</p>
       </aside>
 
       <div className="app-column">
@@ -111,14 +106,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               onSelect={chooseChannel}
               onAddAccount={addYouTubeAccount}
             />
-            <span className="app-header__mobile-freshness">Updated {updated}</span>
+            <span className="app-header__mobile-freshness" title={freshnessTitle}>
+              Updated {updated}
+            </span>
           </div>
-          <div className="app-header__freshness">
-            <span>Updated {updated}</span>
-            {analyticsThrough ? (
-              <span>Analytics through {formatReportingDay(analyticsThrough)}</span>
-            ) : null}
-          </div>
+          <span className="app-header__freshness" title={freshnessTitle}>
+            Updated {updated}
+          </span>
           <div className="app-header__actions">
             <button
               className="icon-button"
@@ -133,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               disabled={status === 'SYNCING' || isDemo}
             >
               <RefreshCw
-                size={19}
+                size={18}
                 strokeWidth={1.8}
                 className={status === 'SYNCING' ? 'is-spinning' : undefined}
               />

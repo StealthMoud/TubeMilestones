@@ -533,8 +533,8 @@ describe('TubeMilestones cloud application states', () => {
     show('/settings');
     expect((await screen.findAllByText(USER.email!)).length).toBeGreaterThan(0);
     expect(screen.getByText('Used only to sign into TubeMilestones.')).toBeVisible();
-    expect(screen.getByText('youtube-a@example.com')).toBeVisible();
-    expect(screen.getByText('youtube-b@example.com')).toBeVisible();
+    expect(screen.getAllByText('youtube-a@example.com').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('youtube-b@example.com').length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Sign out' }).at(-1)!);
     expect(signOut).toHaveBeenCalledOnce();
@@ -578,7 +578,7 @@ describe('TubeMilestones cloud application states', () => {
     await expect(updatePassword.mock.results[0]!.value).resolves.toMatchObject({
       id: USER.id,
     });
-    expect(screen.getByText('youtube-owner@example.com')).toBeVisible();
+    expect(screen.getAllByText('youtube-owner@example.com').length).toBeGreaterThan(0);
     expect(reconnectYouTubeAccount).not.toHaveBeenCalled();
     expect(disconnectYouTubeAccount).not.toHaveBeenCalled();
   });

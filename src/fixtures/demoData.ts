@@ -11,7 +11,7 @@ import { definitionsFor } from '../domain/milestones/definitions';
 import { parseReportingDay, toReportingDay } from '../domain/metrics/dates';
 
 export type DemoFixtureName =
-  'small' | 'growing' | 'large' | 'hidden' | 'no-analytics' | 'new';
+  'small' | 'growing' | 'large' | 'persian' | 'hidden' | 'no-analytics' | 'new';
 
 export type DemoScenarioName =
   | 'unconnected'
@@ -61,6 +61,13 @@ const FIXTURES: Record<DemoFixtureName, FixtureDefinition> = {
     videoCount: 462,
     analytics: true,
     analyticsScale: 140,
+  },
+  persian: {
+    title: 'آخه چرا؟',
+    subscriberCount: 25,
+    viewCount: 1_288,
+    videoCount: 4,
+    analytics: false,
   },
   hidden: {
     title: 'Private Signals',

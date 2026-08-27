@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Plus } from 'lucide-react';
-import { useRef } from 'react';
 import type { Channel } from '../../domain/models';
 import { formatCompactNumber } from '../../domain/metrics/format';
+import { useDismissibleDetails } from '../../hooks/useDismissibleDetails';
 import type { Connection } from '../../services/supabase/dashboardRepository';
 import { ChannelAvatar } from './ChannelAvatar';
 
@@ -20,7 +20,7 @@ export function ChannelSwitcher({
   onSelect,
   onAddAccount,
 }: ChannelSwitcherProps) {
-  const details = useRef<HTMLDetailsElement>(null);
+  const details = useDismissibleDetails();
 
   const close = () => details.current?.removeAttribute('open');
 
@@ -33,7 +33,7 @@ export function ChannelSwitcher({
           size="small"
         />
         <span>
-          <strong>{selected.title}</strong>
+          <strong dir="auto">{selected.title}</strong>
           <small>Switch channel</small>
         </span>
         <ChevronDown size={16} aria-hidden="true" />
@@ -65,12 +65,15 @@ export function ChannelSwitcher({
                   size="small"
                 />
                 <span>
-                  <strong>{channel.title}</strong>
+                  <strong dir="auto">{channel.title}</strong>
                   <small>
-                    {connection?.google_email
-                      ? `via ${connection.google_email}`
-                      : 'via connected Google account'}
-                    {' · '}
+                    <span>
+                      via{' '}
+                      <bdi>
+                        {connection?.google_email ?? 'connected Google account'}
+                      </bdi>
+                    </span>
+                    <span aria-hidden="true">·</span>
                     {channel.subscriberCount === null
                       ? 'Subscribers hidden'
                       : `${formatCompactNumber(channel.subscriberCount)} subscribers`}

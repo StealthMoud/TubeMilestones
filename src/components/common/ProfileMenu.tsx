@@ -1,6 +1,6 @@
 import { LogOut, Plus, UserRound } from 'lucide-react';
-import { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useDismissibleDetails } from '../../hooks/useDismissibleDetails';
 import { ProfileAvatar } from './ProfileAvatar';
 
 interface ProfileMenuProps {
@@ -22,7 +22,7 @@ export function ProfileMenu({
   addDisabled = false,
   signOutDisabled = false,
 }: ProfileMenuProps) {
-  const details = useRef<HTMLDetailsElement>(null);
+  const details = useDismissibleDetails();
   const close = () => details.current?.removeAttribute('open');
 
   return (
@@ -34,8 +34,10 @@ export function ProfileMenu({
         <div className="profile-menu__identity">
           <ProfileAvatar initials={initials} />
           <span>
-            <strong>{displayName}</strong>
-            <small>{email ?? 'TubeMilestones account'}</small>
+            <strong dir="auto">{displayName}</strong>
+            <small>
+              <bdi>{email ?? 'TubeMilestones account'}</bdi>
+            </small>
           </span>
         </div>
         <Link to="/settings" onClick={close}>

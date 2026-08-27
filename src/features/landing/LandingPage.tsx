@@ -18,32 +18,30 @@ function JourneySignature() {
         <span>Next milestone</span>
         <strong>74.2%</strong>
       </div>
-      <div className="landing-signature__target">
-        <strong>1,000</strong>
-        <span>subscribers</span>
+      <div className="landing-signature__values">
+        <div className="landing-signature__current">
+          <span>Current</span>
+          <strong>742</strong>
+          <small>subscribers</small>
+        </div>
+        <div className="landing-signature__target">
+          <span>Target</span>
+          <strong>1,000</strong>
+          <small>258 to go</small>
+        </div>
       </div>
-      <div className="landing-signature__current">
-        <strong>742</strong>
-        <span>258 to go</span>
+      <div className="landing-signature__rail" aria-hidden="true">
+        <span style={{ width: '74.2%' }}>
+          <i />
+        </span>
       </div>
-      <svg viewBox="0 0 620 130" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M18 92C136 92 171 37 294 37C418 37 451 90 602 58" />
-        <path
-          className="is-progress"
-          d="M18 92C136 92 171 37 294 37C418 37 451 90 602 58"
-          pathLength="1"
-        />
-        <circle cx="18" cy="92" r="6" />
-        <circle className="is-current" cx="294" cy="37" r="9" />
-        <circle className="is-future" cx="602" cy="58" r="7" />
-      </svg>
-      <ol className="landing-signature__trail" aria-hidden="true">
-        <li className="is-complete">
-          <Check size={13} /> 500
-        </li>
-        <li className="is-current">1K</li>
-        <li>2.5K</li>
-      </ol>
+      <div className="landing-signature__trail" aria-hidden="true">
+        <span className="is-complete">
+          <Check size={13} /> 500 achieved
+        </span>
+        <span className="is-current">742 now</span>
+        <span>1K target</span>
+      </div>
     </div>
   );
 }

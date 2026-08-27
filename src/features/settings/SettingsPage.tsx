@@ -216,8 +216,10 @@ export default function SettingsPage() {
           <div className="settings-profile__summary">
             <ProfileAvatar initials={profileInitials} size="large" />
             <div className="settings-row__copy">
-              <strong>{displayName}</strong>
-              <span>{authUser?.email ?? 'Demo session'}</span>
+              <strong dir="auto">{displayName}</strong>
+              <span>
+                <bdi>{authUser?.email ?? 'Demo session'}</bdi>
+              </span>
             </div>
             <Button
               variant="secondary"
@@ -294,7 +296,9 @@ export default function SettingsPage() {
         <div className="settings-list">
           <div className="settings-row settings-row--account-identity">
             <div className="settings-row__copy">
-              <strong>{authUser?.email ?? 'Demo session'}</strong>
+              <strong>
+                <bdi>{authUser?.email ?? 'Demo session'}</bdi>
+              </strong>
               <span>Used only to sign into TubeMilestones.</span>
             </div>
           </div>
@@ -336,7 +340,7 @@ export default function SettingsPage() {
                   <div className="settings-connection__heading">
                     <div className="settings-row__copy">
                       <strong>
-                        {account.google_email ?? 'Connected Google account'}
+                        <bdi>{account.google_email ?? 'Connected Google account'}</bdi>
                       </strong>
                       <span>Google authorization for the channels listed below.</span>
                     </div>
@@ -359,8 +363,10 @@ export default function SettingsPage() {
                             size="small"
                           />
                           <span>
-                            <strong>{channel.title}</strong>
-                            <small>{channel.youtubeChannelId}</small>
+                            <strong dir="auto">{channel.title}</strong>
+                            <small>
+                              <bdi>{channel.youtubeChannelId}</bdi>
+                            </small>
                           </span>
                         </div>
                       ))
