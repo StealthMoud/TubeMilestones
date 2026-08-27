@@ -36,6 +36,7 @@ import {
   type Connection,
 } from '../services/supabase/dashboardRepository';
 import { useDocumentTheme } from './useDocumentTheme';
+import { ApplicationAuthError } from '../auth/authErrors';
 
 export type AppStatus =
   | 'UNCONFIGURED'
@@ -132,7 +133,6 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     await queryClient.invalidateQueries({ queryKey: ['analytics-history'] });
   }, [auth.user?.id, queryClient]);
 
-  const signInMutation = useMutation({ mutationFn: auth.signInWithGoogle });
   const addAccountMutation = useMutation({ mutationFn: addYouTubeAccount });
   const reconnectMutation = useMutation({ mutationFn: reconnectYouTubeAccount });
   const syncMutation = useMutation({
@@ -185,13 +185,15 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     syncMutation.isPending ||
     channelMutation.isPending;
   const status: AppStatus = demo.isDemo
-    ? demo.scenario === 'unconnected'
-      ? 'CONNECT_YOUTUBE'
-      : demo.scenario === 'reauth'
-        ? 'REAUTH_REQUIRED'
-        : demo.scenario === 'deletion-pending'
-          ? 'DELETION_PENDING'
-          : 'READY'
+    ? demo.scenario === 'auth' || demo.scenario === 'password-recovery'
+      ? 'SIGNED_OUT'
+      : demo.scenario === 'unconnected'
+        ? 'CONNECT_YOUTUBE'
+        : demo.scenario === 'reauth'
+          ? 'REAUTH_REQUIRED'
+          : demo.scenario === 'deletion-pending'
+            ? 'DELETION_PENDING'
+            : 'READY'
     : !auth.configured
       ? 'UNCONFIGURED'
       : !auth.user
@@ -237,7 +239,6 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
   ]);
 
   const mutationError =
-    signInMutation.error ??
     addAccountMutation.error ??
     reconnectMutation.error ??
     syncMutation.error ??
@@ -291,8 +292,39 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     isDemo: demo.isDemo,
     oauthConfigured: demo.isDemo || auth.configured,
     authUser: demo.scenario === 'unconnected' ? DEMO_USER : auth.user,
+    authMethods:
+      demo.scenario === 'password-recovery'
+        ? { google: false, password: true }
+        : auth.signInMethods,
+    isPasswordRecovery:
+      demo.scenario === 'password-recovery' || auth.isPasswordRecovery,
     newMilestone,
-    signIn: async () => signInMutation.mutateAsync(),
+    signInWithGoogle: async () => {
+      if (!demo.isDemo) await auth.signInWithGoogle();
+    },
+    signInWithPassword: async (email: string, password: string) => {
+      if (demo.scenario === 'auth') {
+        throw new ApplicationAuthError('INVALID_CREDENTIALS');
+      }
+      await auth.signInWithPassword(email, password);
+    },
+    signUpWithPassword: async (email: string, password: string) => {
+      if (demo.scenario === 'auth') {
+        return { status: 'CONFIRMATION_REQUIRED' as const, email: email.trim() };
+      }
+      return auth.signUpWithPassword(email, password);
+    },
+    requestPasswordReset: async (email: string) => {
+      if (demo.scenario !== 'auth') await auth.requestPasswordReset(email);
+    },
+    updatePassword: async (password: string) => {
+      if (demo.scenario === 'password-recovery') return DEMO_USER;
+      return auth.updatePassword(password);
+    },
+    completePasswordRecovery: () => {
+      if (demo.scenario === 'password-recovery') demo.exitDemo();
+      else auth.completePasswordRecovery();
+    },
     signOut: auth.signOut,
     addYouTubeAccount: async () => {
       if (!demo.isDemo) await addAccountMutation.mutateAsync();

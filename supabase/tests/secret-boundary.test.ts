@@ -87,4 +87,36 @@ describe('browser and logging secret boundaries', () => {
       /redirect\([\s\S]{0,120}(?:access_token|refresh_token)/u,
     );
   });
+
+  it('sends passwords only through Supabase Auth browser methods', () => {
+    const passwordSources = [
+      resolve('src/auth/AuthProvider.tsx'),
+      resolve('src/features/auth/ApplicationAuthPanel.tsx'),
+      resolve('src/features/auth/PasswordRecoveryPage.tsx'),
+      resolve('src/features/auth/SignInMethodsSettings.tsx'),
+    ].map((path) => readFileSync(path, 'utf8'));
+
+    for (const source of passwordSources) {
+      expect(source).not.toMatch(/console\.(?:log|info|warn|error)/u);
+      expect(source).not.toContain('localStorage');
+      expect(source).not.toContain('sessionStorage');
+      expect(source).not.toContain('functions.invoke');
+      expect(source).not.toMatch(/searchParams\.set\(['"]password/u);
+    }
+
+    const provider = passwordSources[0] ?? '';
+    expect(provider).toContain('client.auth.signInWithPassword');
+    expect(provider).toContain('client.auth.signUp');
+    expect(provider).toContain('client.auth.resetPasswordForEmail');
+    expect(provider).toContain('client.auth.updateUser');
+  });
+
+  it('keeps application Google login and YouTube Client B authorization separate', () => {
+    const provider = readFileSync(resolve('src/auth/AuthProvider.tsx'), 'utf8');
+    const actions = readFileSync(resolve('src/services/supabase/actions.ts'), 'utf8');
+    expect(provider).toContain("scopes: 'openid email profile'");
+    expect(provider).not.toMatch(/youtube(?:\.readonly|analytics)/iu);
+    expect(provider).not.toContain('youtube-oauth-start');
+    expect(actions).toContain("invokeFunction<unknown>('youtube-oauth-start', input)");
+  });
 });

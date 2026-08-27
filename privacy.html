@@ -50,9 +50,11 @@
         <section>
           <h2>Separate login and connected YouTube identities</h2>
           <p>
-            “Continue with Google” uses Supabase Auth to establish TubeMilestones
-            application identity from basic profile, email, and OpenID information. That
-            sign-in alone does not grant YouTube access.
+            TubeMilestones application login supports email/password or “Continue with
+            Google” through Supabase Auth. Supabase Auth handles password hashing, email
+            confirmation, and recovery; passwords are not stored in TubeMilestones
+            application tables. Google login uses only basic profile, email, and OpenID
+            information. Neither login method grants YouTube access.
           </p>
           <p>
             “Connect YouTube account” uses a separate Google OAuth client. You may
@@ -121,8 +123,9 @@
           <h2>Storage and processors</h2>
           <p>
             GitHub Pages serves only the application files. Supabase provides
-            application authentication, sessions, database storage, row-level security,
-            trusted functions, token Vault, and scheduled compliance/deletion work.
+            application authentication—including password hashes and email
+            verification—sessions, database storage, row-level security, trusted
+            functions, token Vault, and scheduled compliance/deletion work.
             Approximately 120 recent days are kept as hot database history.
           </p>
           <p>

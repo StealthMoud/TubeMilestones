@@ -3,6 +3,22 @@
   margin-inline: auto;
 }
 
+.page--account-only {
+  min-height: 100dvh;
+  padding: clamp(1rem, 5vw, 3rem);
+}
+
+.settings-back-link {
+  width: fit-content;
+  color: var(--tm-text-muted);
+  font-size: 0.76rem;
+  font-weight: 680;
+}
+
+.settings-back-link:hover {
+  color: var(--tm-primary-strong);
+}
+
 .settings-group {
   display: grid;
   gap: var(--space-3);
@@ -164,6 +180,11 @@
   background: var(--tm-warning-soft);
 }
 
+.settings-status.is-neutral {
+  color: var(--tm-text-muted);
+  background: var(--tm-bg-subtle);
+}
+
 .source-badge {
   color: var(--tm-primary-strong);
   background: var(--tm-primary-soft);
@@ -174,6 +195,85 @@
   flex: 0 0 auto;
   padding: 0.6rem 0.8rem;
   font-size: 0.76rem;
+}
+
+.sign-in-methods {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-top: 1px solid var(--tm-border);
+}
+
+.sign-in-methods__heading > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sign-in-methods__heading strong,
+.sign-in-methods__row > span {
+  font-size: 0.8rem;
+  font-weight: 680;
+}
+
+.sign-in-methods__heading span {
+  color: var(--tm-text-muted);
+  font-size: 0.7rem;
+}
+
+.sign-in-methods__list {
+  overflow: hidden;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--radius-md);
+  background: var(--tm-bg-subtle);
+}
+
+.sign-in-methods__row {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0.65rem var(--space-3);
+}
+
+.sign-in-methods__row + .sign-in-methods__row {
+  border-top: 1px solid var(--tm-border);
+}
+
+.sign-in-methods__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.sign-in-methods__actions .button {
+  flex: 0 0 auto;
+}
+
+.sign-in-methods__success {
+  margin: 0;
+  color: var(--tm-success);
+  font-size: 0.75rem;
+}
+
+.password-settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--tm-border);
+}
+
+.password-settings-form > .form-error,
+.password-settings-form__actions {
+  grid-column: 1 / -1;
+}
+
+.password-settings-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .theme-segmented {
@@ -345,6 +445,10 @@
   .settings-connection__heading .settings-status {
     justify-self: start;
   }
+
+  .password-settings-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 420px) {
@@ -354,5 +458,16 @@
 
   .settings-row .button {
     max-width: 45%;
+  }
+
+  .settings-row--account-actions,
+  .sign-in-methods__actions {
+    display: grid;
+  }
+
+  .settings-row--account-actions .button,
+  .sign-in-methods__actions .button {
+    width: 100%;
+    max-width: none;
   }
 }

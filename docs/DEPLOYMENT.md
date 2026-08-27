@@ -70,6 +70,8 @@ CI repeats these responsibilities, with a minimal database service for migration
 - `/`, `/#/journey`, `/#/analytics`, `/#/settings`, `/privacy.html`, and `/terms.html`
   load at the project path without asset errors.
 - The production bundle contains only the three public frontend configuration values.
+- Email/password signup, confirmation, login, forgot-password, and recovery return to
+  the approved Pages application callback without initiating YouTube OAuth.
 - Google login returns to the Pages project path.
 - YouTube start URL has `accounts.google.com` origin, `select_account consent`, no login
   hint, and exactly OpenID/email plus the two read-only YouTube scopes.

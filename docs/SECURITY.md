@@ -6,23 +6,30 @@ hosting is never treated as a secret-bearing runtime.
 
 ## Credential boundary
 
-| Credential                       | Browser  | Supabase trusted runtime | Persistent location                 |
-| -------------------------------- | -------- | ------------------------ | ----------------------------------- |
-| Supabase publishable key         | yes      | yes                      | public build configuration          |
-| Supabase user session            | yes      | verified by Auth         | sanitized Auth client storage       |
-| Google identity provider token   | stripped | Supabase Auth only       | not retained by app storage         |
-| Connected Google subject/email   | no       | yes                      | connection row; verified label only |
-| Google YouTube access token      | no       | short-lived use          | function memory only                |
-| Google YouTube refresh token     | no       | yes                      | Supabase Vault reference only       |
-| Google YouTube client secret     | no       | yes                      | Edge secret                         |
-| Supabase secret/service-role key | no       | database administration  | hosted runtime                      |
-| TubeMilestones automation secret | no       | Cron worker auth         | Edge secret + Cron Vault reference  |
-| R2 access and secret keys        | no       | yes                      | Edge secrets                        |
-| Archive master key               | no       | yes                      | versioned Edge secret               |
+| Credential                       | Browser             | Supabase trusted runtime | Persistent location                 |
+| -------------------------------- | ------------------- | ------------------------ | ----------------------------------- |
+| Supabase publishable key         | yes                 | yes                      | public build configuration          |
+| Supabase user session            | yes                 | verified by Auth         | sanitized Auth client storage       |
+| Application password             | one request to Auth | Supabase Auth only       | Auth-managed hash; never app tables |
+| Google identity provider token   | stripped            | Supabase Auth only       | not retained by app storage         |
+| Connected Google subject/email   | no                  | yes                      | connection row; verified label only |
+| Google YouTube access token      | no                  | short-lived use          | function memory only                |
+| Google YouTube refresh token     | no                  | yes                      | Supabase Vault reference only       |
+| Google YouTube client secret     | no                  | yes                      | Edge secret                         |
+| Supabase secret/service-role key | no                  | database administration  | hosted runtime                      |
+| TubeMilestones automation secret | no                  | Cron worker auth         | Edge secret + Cron Vault reference  |
+| R2 access and secret keys        | no                  | yes                      | Edge secrets                        |
+| Archive master key               | no                  | yes                      | versioned Edge secret               |
 
 Frontend code rejects unconfigured cloud state and only accepts an HTTPS Supabase URL
 plus current publishable key outside localhost. A storage adapter recursively strips
 `provider_token` and `provider_refresh_token` before Supabase Auth state is persisted.
+Email/password forms keep password values outside React state and clear them after each
+submission. Only Supabase Auth receives those values; they are never sent to an Edge
+Function, URL, application log, analytics event, or browser persistence. Recovery uses
+the same approved application callback and a distinct `PASSWORD_RECOVERY` state, not the
+YouTube OAuth callback. Native Supabase identities and `auth.users.id` remain the
+ownership boundary; frontend email matching never merges accounts.
 Edge CORS accepts only strictly parsed origins from `TUBEMILESTONES_ALLOWED_ORIGINS`,
 always including the canonical `FRONTEND_URL` origin. Wildcards, URL paths, credentials,
 and production localhost entries are rejected.

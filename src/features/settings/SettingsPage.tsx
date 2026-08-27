@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ExternalLink,
   Plus,
@@ -14,6 +15,7 @@ import { ChannelAvatar } from '../../components/common/ChannelAvatar';
 import { Modal } from '../../components/common/Modal';
 import type { ThemePreference } from '../../domain/models';
 import { formatReportingDay } from '../../domain/metrics/dates';
+import { SignInMethodsSettings } from '../auth/SignInMethodsSettings';
 import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 
 const THEMES: Array<{ value: ThemePreference; label: string }> = [
@@ -54,6 +56,7 @@ export default function SettingsPage() {
     channels,
     status,
     authUser,
+    authMethods,
     isDemo,
     refresh,
     addYouTubeAccount,
@@ -61,6 +64,7 @@ export default function SettingsPage() {
     disconnectYouTubeAccount,
     deleteAccount,
     signOut,
+    updatePassword,
     setTheme,
     updateManualMetrics,
   } = useTubeMilestones();
@@ -77,7 +81,50 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [destructivePending, setDestructivePending] = useState(false);
 
-  if (!data) return null;
+  const accountSettings = (
+    <section className="settings-group" aria-labelledby="account-title">
+      <h2 id="account-title">TubeMilestones account</h2>
+      <div className="settings-list">
+        <div className="settings-row settings-row--account-identity">
+          <div className="settings-row__copy">
+            <strong>{authUser?.email ?? 'Demo session'}</strong>
+            <span>Used only to sign into TubeMilestones.</span>
+          </div>
+        </div>
+        <SignInMethodsSettings
+          methods={authMethods}
+          updatePassword={updatePassword}
+          disabled={isDemo}
+        />
+        <div className="settings-row settings-row--account-actions">
+          <div className="settings-row__copy">
+            <strong>Account session</strong>
+            <span>Signing out does not disconnect any YouTube account.</span>
+          </div>
+          {!isDemo ? (
+            <Button variant="quiet" onClick={() => void signOut()}>
+              Sign out
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+
+  if (!data) {
+    return (
+      <div className="page page--settings page--account-only page-enter">
+        <Link className="settings-back-link" to="/">
+          Back to YouTube connection
+        </Link>
+        <header className="page-heading">
+          <p className="page-heading__context">Account access</p>
+          <h1>Settings</h1>
+        </header>
+        {accountSettings}
+      </div>
+    );
+  }
 
   const saveManualMetrics = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -136,22 +183,7 @@ export default function SettingsPage() {
         <h1>Settings</h1>
       </header>
 
-      <section className="settings-group" aria-labelledby="account-title">
-        <h2 id="account-title">TubeMilestones account</h2>
-        <div className="settings-list">
-          <div className="settings-row">
-            <div className="settings-row__copy">
-              <strong>{authUser?.email ?? 'Demo session'}</strong>
-              <span>Used only to sign into TubeMilestones.</span>
-            </div>
-            {!isDemo ? (
-              <Button variant="quiet" onClick={() => void signOut()}>
-                Sign out
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      {accountSettings}
 
       <section className="settings-group" aria-labelledby="youtube-accounts-title">
         <div className="settings-group__heading">

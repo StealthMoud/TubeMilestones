@@ -13,7 +13,8 @@ TubeMilestones is a mobile-first React application that turns statistics from au
 YouTube channels into honest personal progression paths. One TubeMilestones account can
 connect multiple Google/YouTube accounts and switch across all of their channels.
 GitHub Pages serves only the UI;
-Supabase owns identity, server-side YouTube access, hot data, and trusted workflows;
+Supabase owns email/password and Google identity, server-side YouTube access, hot data,
+and trusted workflows;
 encrypted older history lives in a private Cloudflare R2 bucket.
 
 ## Product
@@ -25,7 +26,7 @@ encrypted older history lives in a private Cloudflare R2 bucket.
 - Hidden and rounded subscriber semantics that match YouTube API precision
 - Clearly labeled, user-entered YouTube Partner Program guidance values
 - System, premium dark, and intentional warm-light appearance modes
-- Separate Google application sign-in and read-only YouTube authorization
+- Email/password or Google application sign-in, separate from read-only YouTube authorization
 - Multiple independently authorized YouTube accounts with one cross-account channel switcher
 - Connection-scoped reconnect, disconnect, revalidation, and retryable purge workflows
 
@@ -62,7 +63,9 @@ GitHub Pages browser ── Supabase JWT ──> Supabase Auth + Postgres + RLS
 Each YouTube connection has an independent Google subject, Vault credential, lifecycle,
 and set of channels. The browser never receives the Google YouTube refresh token, Google client secret, R2
 credentials, archive master key, or a Supabase elevated key. R2 is never called directly
-from frontend code. GitHub remains source control and does not store user analytics.
+from frontend code. Supabase Auth owns password hashing and email verification; passwords
+are not stored in TubeMilestones application tables. GitHub remains source control and
+does not store user analytics.
 
 Read [Architecture](docs/ARCHITECTURE.md), [Security](docs/SECURITY.md), and the
 [API and data policy](docs/API_AND_DATA_POLICY.md) for the complete boundaries.

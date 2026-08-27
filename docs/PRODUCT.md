@@ -15,9 +15,10 @@ achievements were actually observed.
 5. User-entered YPP values are labeled “User entered,” and YouTube Studio remains the
    source of truth.
 6. The app never predicts milestone dates, revenue, eligibility, or a creator score.
-7. Google application identity and YouTube authorization remain two explicit steps.
-8. One TubeMilestones account may connect multiple Google/YouTube accounts. The Google
-   account used for YouTube does not need to match the Google account used for sign-in.
+7. TubeMilestones application identity—email/password or Google—and YouTube
+   authorization remain explicit, independent steps.
+8. One TubeMilestones account may connect multiple Google/YouTube accounts. A connected
+   YouTube account does not need to match the email or Google identity used for sign-in.
 9. Every YouTube account can be reconnected or disconnected independently. Signing out
    ends only the TubeMilestones session and does not revoke YouTube authorizations.
 10. A returning user sees saved hot data first; a stale selected connection refreshes in the
@@ -26,7 +27,7 @@ achievements were actually observed.
 ## Core flow
 
 ```text
-Continue with Google
+Email + password OR Continue with Google
         ↓
 Supabase application account
         ↓
@@ -38,6 +39,7 @@ choose a channel → Home → Journey → Analytics → Settings
         ↘ add another YouTube account at any time
 ```
 
+Email/password sign-in goes directly to Supabase Auth and does not interact with Google.
 Google sign-in requests only identity information through Supabase Auth Client A.
 “Connect YouTube account” uses separate Client B and requests OpenID/email identity plus
 the exact read-only channel and Analytics scopes needed by the product. Client B always
@@ -47,10 +49,11 @@ shows Google's account chooser.
 
 ### Landing and connection
 
-Landing explains the progression idea and application identity. The separate connection
-screen explicitly says the YouTube Google account may differ from the TubeMilestones
-login and explains the read-only boundary before authorization. Unconfigured cloud
-deployments show an explicit non-functional state rather than a fake success path.
+Landing explains the progression idea and offers focused sign-in, account creation,
+password recovery, and Google login. The separate connection screen explicitly says the
+YouTube Google account may differ from the TubeMilestones login and explains the
+read-only boundary before authorization. Unconfigured cloud deployments show an
+explicit non-functional state rather than a fake success path.
 
 ### Home
 
@@ -75,9 +78,11 @@ warning.
 The header switcher lists all channels across every connected YouTube account and never
 uses the TubeMilestones login email as channel identity. Settings separates the
 TubeMilestones login from connected YouTube accounts, groups channels by connection, and
-offers per-account add, reconnect, and disconnect controls. Disconnect explains that only
-that connection's saved data and Google access are removed and nothing is deleted from
-YouTube. Account deletion removes all connections and exposes pending or
+shows its native Google and email/password sign-in methods. A signed-in Google user can
+add a password to the same Supabase user; enabled users can change it. Settings also
+offers per-account YouTube add, reconnect, and disconnect controls. Disconnect explains
+that only that connection's saved data and Google access are removed and nothing is
+deleted from YouTube. Account deletion removes all connections and exposes pending or
 retryable lifecycle state rather than pretending an incomplete purge succeeded.
 
 ## Data freshness

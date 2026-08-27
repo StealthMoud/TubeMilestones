@@ -1,0 +1,215 @@
+.auth-panel {
+  display: grid;
+  width: min(100%, 29rem);
+  gap: var(--space-4);
+  padding: clamp(1rem, 3vw, 1.35rem);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--tm-surface) 92%, transparent);
+  box-shadow: var(--tm-shadow-soft);
+}
+
+.auth-panel__heading,
+.auth-panel__confirmation {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.auth-panel__heading h2,
+.auth-panel__confirmation h2 {
+  margin: 0;
+  font-size: clamp(1.15rem, 3vw, 1.35rem);
+  line-height: 1.18;
+  letter-spacing: -0.035em;
+}
+
+.auth-panel__heading p,
+.auth-panel__confirmation p {
+  margin: 0;
+  color: var(--tm-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.auth-panel__confirmation strong {
+  overflow-wrap: anywhere;
+  color: var(--tm-text);
+}
+
+.auth-panel__step {
+  color: var(--tm-primary-strong);
+  font-size: 0.65rem;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.auth-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.auth-form .form-field {
+  gap: 0.4rem;
+}
+
+.auth-form .form-field > span {
+  font-size: 0.72rem;
+}
+
+.auth-form .form-field input {
+  min-height: 46px;
+}
+
+.auth-form > .button,
+.auth-panel__google {
+  width: 100%;
+}
+
+.auth-link {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  color: var(--tm-primary-strong);
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 680;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.auth-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.auth-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.auth-link--forgot {
+  justify-self: end;
+  margin-top: -0.15rem;
+}
+
+.auth-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--tm-text-muted);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  background: var(--tm-border);
+  content: '';
+}
+
+.auth-panel__switch,
+.auth-panel__separation {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.auth-panel__switch {
+  color: var(--tm-text-secondary);
+  text-align: center;
+}
+
+.auth-panel__separation {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--tm-border);
+  color: var(--tm-text-muted);
+}
+
+.auth-panel__success,
+.recovery-success {
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--tm-success) 35%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--tm-success);
+  background: var(--tm-success-soft);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.recovery-page {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-rows: auto 1fr auto;
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      color-mix(in srgb, var(--tm-primary) 12%, transparent),
+      transparent 28rem
+    ),
+    var(--tm-bg);
+}
+
+.recovery-header,
+.recovery-footer {
+  display: flex;
+  width: min(calc(100% - 2rem), 70rem);
+  min-height: 72px;
+  align-items: center;
+  margin-inline: auto;
+}
+
+.recovery-main {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.recovery-panel {
+  display: grid;
+  width: min(100%, 28rem);
+  gap: var(--space-5);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--radius-xl);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow);
+}
+
+.recovery-panel h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 6vw, 2.35rem);
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+}
+
+.recovery-success {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.recovery-success p {
+  margin: 0;
+  color: var(--tm-text-secondary);
+}
+
+.recovery-footer {
+  justify-content: center;
+  gap: var(--space-5);
+  color: var(--tm-text-muted);
+  font-size: 0.75rem;
+}
+
+.recovery-footer a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .auth-panel {
+    padding-inline: var(--space-4);
+  }
+}

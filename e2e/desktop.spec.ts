@@ -8,6 +8,55 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
 }
 
+test('desktop application auth covers sign in, signup, recovery, and Google', async ({
+  page,
+}) => {
+  await page.goto('/#/?demo=auth');
+  await expect(
+    page.getByRole('heading', { name: 'Sign in to TubeMilestones' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Continue with Google' }),
+  ).toBeEnabled();
+
+  await page.getByLabel('Email').fill('creator@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
+
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByLabel('Email').fill('creator@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('password');
+  await page.getByLabel('Confirm password', { exact: true }).fill('password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Back to sign in' }).click();
+  await page.getByRole('button', { name: 'Forgot password?' }).click();
+  await page.getByLabel('Email').fill('unknown@example.com');
+  await page.getByRole('button', { name: 'Send reset instructions' }).click();
+  await expect(page.getByRole('status')).toContainText('If an account exists');
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto('/#/?demo=password-recovery');
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Choose a new password' }),
+  ).toBeVisible();
+  await page.getByLabel('New password', { exact: true }).fill('new password');
+  await page.getByLabel('Confirm new password', { exact: true }).fill('new password');
+  await page.getByRole('button', { name: 'Update password' }).click();
+  await expect(page.getByRole('status')).toContainText('Password updated.');
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto('/#/?demo=auth');
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Continue with Google' }),
+  ).toBeEnabled();
+});
+
 test('desktop Home and Journey use the sidebar composition without overflow', async ({
   page,
 }) => {

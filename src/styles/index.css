@@ -1,6 +1,7 @@
 @import './tokens.css';
 @import './base.css';
 @import './landing.css';
+@import './auth.css';
 @import './app-shell.css';
 @import './home.css';
 @import './journey.css';

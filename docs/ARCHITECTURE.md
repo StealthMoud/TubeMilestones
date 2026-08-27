@@ -33,11 +33,16 @@ artifacts, or published in releases.
 ## Browser to Supabase
 
 ```text
-Browser ── Google identity login ──> Supabase Auth
-Browser <────── Supabase session ─── Supabase Auth
+Browser ── email/password or Google identity ──> Supabase Auth
+Browser <──────────── Supabase session ───────── Supabase Auth
 Browser ── JWT + query/function ───> Postgres RLS / Edge Function
 Browser <──── own rows / typed data ─ Supabase
 ```
+
+Supabase Auth is the only account system. It owns password hashing, email confirmation,
+recovery, and native identities; `auth.users.id` remains the canonical owner regardless
+of sign-in method. The frontend never merges users by email, and adding a password to an
+OAuth-created user updates that same Auth user without migrating application data.
 
 The frontend uses the current publishable key. Postgres browser reads and the small set
 of user-authored writes are protected by RLS and column/table grants. Trusted derived
@@ -204,7 +209,7 @@ are unique within their exact connection or global scope.
 ## Source layout
 
 ```text
-src/auth/                    Supabase identity session
+src/auth/                    Supabase identity, password, and recovery session flows
 src/services/supabase/       frontend repository and typed actions
 src/hooks/                    query-backed application state
 src/features/                 route UI

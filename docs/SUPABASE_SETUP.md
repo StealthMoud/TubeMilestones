@@ -9,14 +9,19 @@ project.
 1. Create a Supabase project in a region appropriate for the users and data policy.
 2. Record the project URL.
 3. Copy the current browser **publishable key** (`sb_publishable_…`), not a secret key.
-4. In Authentication → Providers, configure Google using OAuth Client A from
+4. In Authentication → Providers, enable Email, allow new user signups, and keep email
+   confirmation enabled for public accounts. Supabase Auth—not an application table—owns
+   password hashing, confirmation, and recovery.
+5. In Authentication → Providers, configure Google using OAuth Client A from
    [Google OAuth setup](GOOGLE_OAUTH_SETUP.md).
-5. Set Authentication → URL Configuration:
+6. Set Authentication → URL Configuration:
    - Site URL: the canonical production `FRONTEND_URL`.
    - Additional redirect URL: the exact production path pattern, such as
      `https://stealthmoud.github.io/TubeMilestones/**` during GitHub project hosting.
    - Add `http://127.0.0.1:5173/**` only for local development.
-6. Link the CLI to the intended project and apply every forward migration:
+     The same approved frontend callback handles Google Client A return, email
+     confirmation, and password recovery. It is unrelated to the Client B Edge callback.
+7. Link the CLI to the intended project and apply every forward migration:
 
    ```bash
    npx supabase login
@@ -24,28 +29,28 @@ project.
    npx supabase db push
    ```
 
-7. Confirm the `vault`, `pg_cron`, and `pg_net` extensions are available after migration.
-8. Inspect every table under Database → Policies and verify RLS is enabled.
+8. Confirm the `vault`, `pg_cron`, and `pg_net` extensions are available after migration.
+9. Inspect every table under Database → Policies and verify RLS is enabled.
    Confirm the multi-account migration produced:
    - `youtube_connections.id`, `google_subject`, and optional `google_email`, with unique
      `(user_id, google_subject)`;
    - `channels.connection_id` and `youtube_token_vault.connection_id`, both constrained
      to a connection owned by the same user;
    - connection-scoped OAuth intent, sync/compliance claims, and deletion requests.
-9. Deploy all Edge Functions:
+10. Deploy all Edge Functions:
 
-   ```bash
-   npx supabase functions deploy youtube-oauth-start
-   npx supabase functions deploy youtube-oauth-callback --no-verify-jwt
-   npx supabase functions deploy youtube-sync
-   npx supabase functions deploy history-query
-   npx supabase functions deploy disconnect-youtube
-   npx supabase functions deploy delete-account
-   npx supabase functions deploy compliance-revalidate --no-verify-jwt
-   npx supabase functions deploy deletion-worker --no-verify-jwt
-   ```
+```bash
+npx supabase functions deploy youtube-oauth-start
+npx supabase functions deploy youtube-oauth-callback --no-verify-jwt
+npx supabase functions deploy youtube-sync
+npx supabase functions deploy history-query
+npx supabase functions deploy disconnect-youtube
+npx supabase functions deploy delete-account
+npx supabase functions deploy compliance-revalidate --no-verify-jwt
+npx supabase functions deploy deletion-worker --no-verify-jwt
+```
 
-10. Configure all required server secrets. These names belong only in the trusted Edge
+11. Configure all required server secrets. These names belong only in the trusted Edge
     runtime:
 
     ```text
@@ -71,7 +76,7 @@ project.
     `FRONTEND_URL` origin. Use localhost entries only when the canonical frontend is
     itself local.
 
-11. Generate the automation secret on a trusted owner workstation, independently from
+12. Generate the automation secret on a trusted owner workstation, independently from
     every Supabase platform credential:
 
     ```bash
@@ -82,8 +87,8 @@ project.
     `SUPABASE_SERVICE_ROLE_KEY` as this value, and never commit or print the generated
     secret.
 
-12. Complete the private R2 bucket and archive-key setup in [R2 setup](R2_SETUP.md).
-13. Create the Cron Vault values in SQL Editor, substituting the public publishable key
+13. Complete the private R2 bucket and archive-key setup in [R2 setup](R2_SETUP.md).
+14. Create the Cron Vault values in SQL Editor, substituting the public publishable key
     and the same dedicated automation secret without committing them:
 
     ```sql
@@ -105,7 +110,7 @@ project.
     `X-TubeMilestones-Automation` header is the independent application authorization
     checked inside both workers. Neither value is a Supabase secret/service-role key.
 
-14. Install the compliance and deletion-retry jobs:
+15. Install the compliance and deletion-retry jobs:
 
     ```sql
     select public.install_tubemilestones_cron_jobs();
@@ -115,8 +120,8 @@ project.
     Vault values at execution time; they do not embed the secret in `cron.job.command`.
     Do not add a full YouTube synchronization Cron job.
 
-15. Trigger each job in a safe test project and inspect typed counts plus sanitized logs.
-16. Verify RLS with two test users and at least three connections: one user owns Google
+16. Trigger each job in a safe test project and inspect typed counts plus sanitized logs.
+17. Verify RLS with two test users and at least three connections: one user owns Google
     subjects A and B; another user may own subject B independently. Own rows must be
     accessible where documented; the other user's rows and every server-only table/RPC
     must be inaccessible. Confirm that credentials, claims, channels, and scoped deletion

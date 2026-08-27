@@ -19,7 +19,9 @@ export type DemoScenarioName =
   | 'deletion-pending'
   | 'api-error'
   | 'archive'
-  | 'archive-partial';
+  | 'archive-partial'
+  | 'auth'
+  | 'password-recovery';
 
 const DEMO_NOW = '2026-08-25T18:00:00.000Z';
 const ANALYTICS_THROUGH = '2026-08-24';
@@ -285,6 +287,8 @@ export function demoScenarioFromLocation(): DemoScenarioName | null {
     'api-error',
     'archive',
     'archive-partial',
+    'auth',
+    'password-recovery',
   ].includes(candidate ?? '')
     ? (candidate as DemoScenarioName)
     : null;

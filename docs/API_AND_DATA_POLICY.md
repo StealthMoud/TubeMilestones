@@ -2,18 +2,19 @@
 
 ## Provider responsibilities
 
-| System           | Responsibility                                                                      | Explicitly not responsible for                          |
-| ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| GitHub Pages     | HTML, CSS, JavaScript, static assets                                                | secrets, API calls with elevated credentials, user data |
-| Supabase         | application identity, sessions, hot Postgres data, RLS, Edge Functions, Vault, Cron | public archive delivery                                 |
-| Google / YouTube | OAuth authorization and source channel/Analytics data                               | TubeMilestones persistence                              |
-| Cloudflare R2    | encrypted older monthly history                                                     | browser access, plaintext data, identity                |
-| GitHub           | source, migrations, tests, documentation                                            | runtime analytics database                              |
+| System           | Responsibility                                                                 | Explicitly not responsible for                          |
+| ---------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| GitHub Pages     | HTML, CSS, JavaScript, static assets                                           | secrets, API calls with elevated credentials, user data |
+| Supabase         | email/password and Google identity, sessions, hot data, RLS, Edge, Vault, Cron | public archive delivery                                 |
+| Google / YouTube | OAuth authorization and source channel/Analytics data                          | TubeMilestones persistence                              |
+| Cloudflare R2    | encrypted older monthly history                                                | browser access, plaintext data, identity                |
+| GitHub           | source, migrations, tests, documentation                                       | runtime analytics database                              |
 
 ## Google permissions
 
-Supabase Auth Google login is application identity and requests only `openid email
-profile`. It does not grant YouTube data access.
+TubeMilestones application login supports email/password and Google through Supabase
+Auth. Password login makes no Google request. Google login requests only `openid email
+profile` and does not grant YouTube data access.
 
 The separate server-side YouTube OAuth client requests exactly:
 
@@ -65,6 +66,10 @@ TanStack Query holds server state in memory. Supabase session material uses the 
 Auth client storage contract, with a sanitizing adapter that removes Google
 `provider_token` and `provider_refresh_token` fields before persistence. The browser does
 not store a Google YouTube refresh token and IndexedDB is not an authoritative database.
+Password fields are short-lived, uncontrolled form values sent only to Supabase Auth;
+they are not placed in URLs, logs, analytics, browser storage, Edge Function requests, or
+TubeMilestones application tables. Supabase Auth owns password hashes, email
+confirmation, and recovery.
 
 ## Hot and cold history
 

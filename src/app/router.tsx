@@ -9,20 +9,45 @@ import { ScreenSkeleton } from '../components/feedback/ScreenSkeleton';
 import { SyncingState } from '../components/feedback/SyncingState';
 import { OAuthCallbackPage } from '../features/auth/OAuthCallbackPage';
 import { DeletionPending } from '../components/feedback/DeletionPending';
+import { PasswordRecoveryPage } from '../features/auth/PasswordRecoveryPage';
 
 const JourneyPage = lazy(() => import('../features/journey/JourneyPage'));
 const AnalyticsPage = lazy(() => import('../features/analytics/AnalyticsPage'));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
 
 export function AppRouter() {
-  const { data, pendingChannels, isInitializing, status, syncStage } =
-    useTubeMilestones({ backgroundSync: true });
+  const {
+    data,
+    pendingChannels,
+    isInitializing,
+    status,
+    syncStage,
+    authUser,
+    isPasswordRecovery,
+    updatePassword,
+    completePasswordRecovery,
+  } = useTubeMilestones({ backgroundSync: true });
   const location = useLocation();
 
+  if (isPasswordRecovery) {
+    return (
+      <PasswordRecoveryPage
+        updatePassword={updatePassword}
+        completePasswordRecovery={completePasswordRecovery}
+      />
+    );
+  }
   if (isInitializing) return <ScreenSkeleton />;
   if (location.pathname === '/oauth/youtube') return <OAuthCallbackPage />;
   if (pendingChannels.length > 0) return <ChannelSelector />;
   if (status === 'DELETION_PENDING' && !data) return <DeletionPending />;
+  if (!data && authUser && location.pathname === '/settings') {
+    return (
+      <Suspense fallback={<ScreenSkeleton />}>
+        <SettingsPage />
+      </Suspense>
+    );
+  }
   if (!data) {
     if (status === 'SYNCING') return <SyncingState stage={syncStage} />;
     return <LandingPage />;

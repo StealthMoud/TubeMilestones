@@ -38,7 +38,10 @@ function initialDemo(): {
   if (!scenario) return { data: null, scenario: null };
   return {
     data:
-      scenario === 'unconnected' || scenario === 'deletion-pending'
+      scenario === 'unconnected' ||
+      scenario === 'deletion-pending' ||
+      scenario === 'auth' ||
+      scenario === 'password-recovery'
         ? null
         : createDemoDashboard(scenario === 'archive' ? 'growing' : 'small'),
     scenario,

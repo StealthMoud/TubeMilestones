@@ -81,8 +81,18 @@ function appState(overrides: Partial<AppState> = {}): AppState {
     isDemo: true,
     oauthConfigured: true,
     authUser: null,
+    authMethods: { google: false, password: false },
+    isPasswordRecovery: false,
     newMilestone: null,
-    signIn: vi.fn().mockResolvedValue(undefined),
+    signInWithGoogle: vi.fn().mockResolvedValue(undefined),
+    signInWithPassword: vi.fn().mockResolvedValue(undefined),
+    signUpWithPassword: vi.fn().mockResolvedValue({
+      status: 'CONFIRMATION_REQUIRED',
+      email: 'creator@example.com',
+    }),
+    requestPasswordReset: vi.fn().mockResolvedValue(undefined),
+    updatePassword: vi.fn().mockResolvedValue(USER),
+    completePasswordRecovery: vi.fn(),
     signOut: vi.fn().mockResolvedValue(undefined),
     addYouTubeAccount: vi.fn().mockResolvedValue(undefined),
     reconnectYouTubeAccount: vi.fn().mockResolvedValue(undefined),
@@ -161,13 +171,41 @@ describe('TubeMilestones cloud application states', () => {
   });
 
   it('starts Supabase Google sign-in from the first landing step', async () => {
-    const signIn = vi.fn().mockResolvedValue(undefined);
+    const signInWithGoogle = vi.fn().mockResolvedValue(undefined);
+    const addYouTubeAccount = vi.fn().mockResolvedValue(undefined);
     hookMocks.useTubeMilestones.mockReturnValue(
-      appState({ status: 'SIGNED_OUT', data: null, isDemo: false, signIn }),
+      appState({
+        status: 'SIGNED_OUT',
+        data: null,
+        isDemo: false,
+        signInWithGoogle,
+        addYouTubeAccount,
+      }),
     );
     show('/');
     await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
-    expect(signIn).toHaveBeenCalledOnce();
+    expect(signInWithGoogle).toHaveBeenCalledOnce();
+    expect(addYouTubeAccount).not.toHaveBeenCalled();
+  });
+
+  it('signs in with a password without creating a YouTube connection', async () => {
+    const signInWithPassword = vi.fn().mockResolvedValue(undefined);
+    const addYouTubeAccount = vi.fn().mockResolvedValue(undefined);
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        status: 'SIGNED_OUT',
+        data: null,
+        isDemo: false,
+        signInWithPassword,
+        addYouTubeAccount,
+      }),
+    );
+    show('/');
+    await userEvent.type(screen.getByLabelText('Email'), 'creator@example.com');
+    await userEvent.type(screen.getByLabelText('Password'), 'password');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(signInWithPassword).toHaveBeenCalledWith('creator@example.com', 'password');
+    expect(addYouTubeAccount).not.toHaveBeenCalled();
   });
 
   it('shows a separate server-side YouTube connection step after account sign-in', async () => {
@@ -185,7 +223,7 @@ describe('TubeMilestones cloud application states', () => {
     expect(
       screen.getByRole('heading', { name: 'Connect your YouTube account.' }),
     ).toBeVisible();
-    expect(screen.getByText(/can be different from the Google account/)).toBeVisible();
+    expect(screen.getByText(/can be different from the account/)).toBeVisible();
     await userEvent.click(
       screen.getByRole('button', { name: 'Connect YouTube account' }),
     );
@@ -193,6 +231,28 @@ describe('TubeMilestones cloud application states', () => {
     expect(
       screen.getByText(/cannot edit, upload, or delete YouTube content/),
     ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Account settings' })).toHaveAttribute(
+      'href',
+      '/settings',
+    );
+  });
+
+  it('keeps sign-in methods available before the first YouTube connection', async () => {
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        status: 'CONNECT_YOUTUBE',
+        data: null,
+        isDemo: false,
+        authUser: USER,
+        authMethods: { google: true, password: false },
+      }),
+    );
+    show('/settings');
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeVisible();
+    expect(screen.getByText(USER.email!)).toBeVisible();
+    expect(screen.getByText('Google').closest('div')).toHaveTextContent('Connected');
+    expect(screen.getByRole('button', { name: 'Add password' })).toBeVisible();
+    expect(screen.queryByText('Connected YouTube accounts')).toBeNull();
   });
 
   it('uses staged initial-sync feedback without blocking on an empty shell', () => {
@@ -360,6 +420,57 @@ describe('TubeMilestones cloud application states', () => {
       screen.getByRole('button', { name: 'Disconnect and delete data' }),
     );
     expect(disconnectYouTubeAccount).toHaveBeenCalledWith(connectionB.id);
+  });
+
+  it('adds password login to the current UUID without touching connected YouTube accounts', async () => {
+    const updatePassword = vi.fn().mockResolvedValue(USER);
+    const reconnectYouTubeAccount = vi.fn().mockResolvedValue(undefined);
+    const disconnectYouTubeAccount = vi.fn().mockResolvedValue(undefined);
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        isDemo: false,
+        authUser: USER,
+        authMethods: { google: true, password: false },
+        updatePassword,
+        reconnectYouTubeAccount,
+        disconnectYouTubeAccount,
+      }),
+    );
+
+    show('/settings');
+    await screen.findByRole('heading', { name: 'Settings' });
+    await userEvent.click(screen.getByRole('button', { name: 'Add password' }));
+    await userEvent.type(screen.getByLabelText('New password'), 'new password');
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'new password');
+    await userEvent.click(screen.getByRole('button', { name: 'Add password' }));
+
+    expect(updatePassword).toHaveBeenCalledWith('new password');
+    await expect(updatePassword.mock.results[0]!.value).resolves.toMatchObject({
+      id: USER.id,
+    });
+    expect(screen.getByText('youtube-owner@example.com')).toBeVisible();
+    expect(reconnectYouTubeAccount).not.toHaveBeenCalled();
+    expect(disconnectYouTubeAccount).not.toHaveBeenCalled();
+  });
+
+  it('renders and completes the password recovery callback independently', async () => {
+    const updatePassword = vi.fn().mockResolvedValue(USER);
+    const completePasswordRecovery = vi.fn();
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({ isPasswordRecovery: true, updatePassword, completePasswordRecovery }),
+    );
+    show('/');
+    expect(
+      screen.getByRole('heading', { name: 'Choose a new password' }),
+    ).toBeVisible();
+    await userEvent.type(screen.getByLabelText('New password'), 'new password');
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'new password');
+    await userEvent.click(screen.getByRole('button', { name: 'Update password' }));
+    expect(updatePassword).toHaveBeenCalledWith('new password');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Continue to TubeMilestones' }),
+    );
+    expect(completePasswordRecovery).toHaveBeenCalledOnce();
   });
 
   it('shows reauthorization in context and routes the action through OAuth', async () => {

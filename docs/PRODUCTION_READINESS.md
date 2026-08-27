@@ -7,6 +7,8 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
 
 - [x] Static Pages frontend contains no trusted provider SDK or elevated credential path
 - [x] Supabase Auth identity and separate server YouTube authorization are implemented
+- [x] Email/password signup, confirmation, login, recovery, and add/change password use
+      Supabase Auth directly without an application password store
 - [x] One TubeMilestones user can own multiple independently identified YouTube connections
 - [x] Migrations define the hot data model, RLS, grants, Vault helpers, and Cron installer
 - [x] Eight Edge entrypoints share typed OAuth, sync, archive, history, and deletion logic
@@ -30,6 +32,7 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
 - [x] Create/select the isolated production Supabase project and region
 - [x] Create the private production R2 bucket and bucket-scoped credential
 - [x] Configure Supabase Auth Google Client A and the exact redirect allow-list
+- [x] Enable the Supabase Email provider, new signups, and email confirmation
 - [x] Configure separate server-side YouTube Google Client B
 - [ ] Configure OAuth test users while the consent screen remains in testing
 - [ ] Complete Google OAuth verification wherever Google requires it

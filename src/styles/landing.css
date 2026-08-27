@@ -72,6 +72,22 @@
   min-width: 0;
 }
 
+.landing-hero__auth-column {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-6);
+  justify-items: center;
+}
+
+.landing-hero__auth-column .landing-trust {
+  width: min(100%, 29rem);
+  margin-top: 0;
+}
+
+.landing-hero__auth-column .landing-signature {
+  width: 100%;
+}
+
 .landing-intro-mark {
   display: flex;
   align-items: center;
@@ -354,6 +370,10 @@
 
   .landing-hero {
     grid-template-columns: minmax(0, 1.08fr) minmax(20rem, 0.92fr);
+  }
+
+  .landing-hero--auth {
+    align-items: start;
   }
 }
 

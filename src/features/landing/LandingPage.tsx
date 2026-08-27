@@ -1,9 +1,11 @@
 import { ArrowRight, Check, LockKeyhole } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { BrandMark } from '../../components/common/BrandMark';
 import { Button } from '../../components/common/Button';
 import { isDemoModeAllowed } from '../../fixtures/demoData';
 import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { userMessageForError } from '../../services/errors';
+import { ApplicationAuthPanel } from '../auth/ApplicationAuthPanel';
 
 function JourneySignature() {
   return (
@@ -62,7 +64,10 @@ export function LandingPage() {
     error,
     oauthConfigured,
     authUser,
-    signIn,
+    signInWithGoogle,
+    signInWithPassword,
+    signUpWithPassword,
+    requestPasswordReset,
     addYouTubeAccount,
     startDemo,
   } = useTubeMilestones();
@@ -91,7 +96,7 @@ export function LandingPage() {
       </header>
 
       <main className="landing-main">
-        <section className="landing-hero">
+        <section className={`landing-hero${signedIn ? '' : ' landing-hero--auth'}`}>
           <div className="landing-hero__copy">
             <div className="landing-intro-mark">
               <BrandMark size={48} />
@@ -112,12 +117,12 @@ export function LandingPage() {
             </h1>
             <p className="landing-hero__lede">
               {signedIn
-                ? 'You’re signed in. Connect a YouTube account to choose a channel and begin tracking. The YouTube account can be different from the Google account you used to sign in.'
+                ? 'You’re signed in. Connect a YouTube account to choose a channel and begin tracking. Your YouTube account can be different from the account you use to sign in.'
                 : "See how far you've come. Know what's next. TubeMilestones turns channel data into a personal progression path."}
             </p>
 
-            <div className="landing-hero__actions">
-              {signedIn ? (
+            {signedIn ? (
+              <div className="landing-hero__actions">
                 <Button
                   icon={<ArrowRight size={18} aria-hidden="true" />}
                   onClick={() => void addYouTubeAccount()}
@@ -125,21 +130,16 @@ export function LandingPage() {
                 >
                   {connecting ? 'Opening Google…' : 'Connect YouTube account'}
                 </Button>
-              ) : (
-                <Button
-                  icon={<ArrowRight size={18} aria-hidden="true" />}
-                  onClick={() => void signIn()}
-                  disabled={connecting || !oauthConfigured}
-                >
-                  {connecting ? 'Opening Google…' : 'Continue with Google'}
-                </Button>
-              )}
-              {demoAllowed ? (
-                <Button variant="quiet" onClick={() => startDemo('small')}>
-                  Explore demo
-                </Button>
-              ) : null}
-            </div>
+                <Link className="button button--quiet" to="/settings">
+                  Account settings
+                </Link>
+                {demoAllowed ? (
+                  <Button variant="quiet" onClick={() => startDemo('small')}>
+                    Explore demo
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
 
             {signedIn ? (
               <div className="landing-permission-note">
@@ -173,9 +173,23 @@ export function LandingPage() {
                 <strong>{userMessageForError(error)}</strong>
               </div>
             ) : null}
-            <TrustLine />
+            {signedIn ? <TrustLine /> : null}
           </div>
-          <JourneySignature />
+          {signedIn ? (
+            <JourneySignature />
+          ) : (
+            <div className="landing-hero__auth-column">
+              <ApplicationAuthPanel
+                configured={oauthConfigured}
+                signInWithGoogle={signInWithGoogle}
+                signInWithPassword={signInWithPassword}
+                signUpWithPassword={signUpWithPassword}
+                requestPasswordReset={requestPasswordReset}
+              />
+              <TrustLine />
+              <JourneySignature />
+            </div>
+          )}
         </section>
       </main>
 

@@ -2,6 +2,8 @@
 
 TubeMilestones intentionally uses two Google OAuth clients. Combining them would blur
 application identity with YouTube authorization and make consent harder to understand.
+Normal email/password application login uses Supabase Auth directly and touches neither
+Google client.
 
 ## Prerequisites
 
@@ -80,9 +82,10 @@ the browser, logs, or documentation screenshots.
 
 ## Consent and verification
 
-Present the two steps plainly in the product: “Continue with Google” creates or restores
-the TubeMilestones account; “Connect YouTube account” requests connection identity and
-read-only channel access. Explicitly state that these may be different Google accounts.
+Present the two steps plainly in the product: email/password or “Continue with Google”
+creates or restores the TubeMilestones account; “Connect YouTube account” requests
+connection identity and read-only channel access. Explicitly state that login identity
+and connected YouTube identities may differ.
 After connection, show Client B's verified email only in connected-account management;
 the channel switcher must show channel identity rather than the Client A login email. The
 consent-screen copy, homepage, privacy policy, terms, authorized domains, and product UI
