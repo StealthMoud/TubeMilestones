@@ -5,6 +5,7 @@ export interface LogEvent {
   latencyMs?: number;
   userId?: string;
   errorCode?: string;
+  connectionId?: string;
 }
 
 export function logEvent(event: LogEvent): void {

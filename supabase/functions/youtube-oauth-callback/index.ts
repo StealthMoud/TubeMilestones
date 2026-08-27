@@ -1,11 +1,33 @@
+import { z } from 'zod';
 import { adminClient } from '../_shared/auth.ts';
+import { sha256Hex } from '../_shared/crypto.ts';
 import { frontendUrl } from '../_shared/env.ts';
 import { AppError, asAppError } from '../_shared/errors.ts';
-import { exchangeAuthorizationCode } from '../_shared/google.ts';
+import {
+  exchangeAuthorizationCode,
+  fetchGoogleConnectionIdentity,
+} from '../_shared/google.ts';
 import { logEvent } from '../_shared/logging.ts';
-import { assertOfflineRefreshToken, parseOAuthCallback } from '../_shared/oauth.ts';
-import { sha256Hex } from '../_shared/crypto.ts';
-import { fetchOwnedChannels } from '../_shared/youtube.ts';
+import {
+  assertOfflineRefreshToken,
+  parseOAuthCallback,
+  reconnectIdentityMatches,
+} from '../_shared/oauth.ts';
+import { fetchOwnedChannels, type ObservedChannel } from '../_shared/youtube.ts';
+
+const completionSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    outcome: z.literal('CONNECTED'),
+    connectionId: z.uuid(),
+    channelsAdded: z.number().int().nonnegative(),
+    channelsAlreadyTracked: z.number().int().nonnegative(),
+    selectedChannelId: z.uuid().nullable(),
+  }),
+  z.object({ outcome: z.literal('ACCOUNT_MISMATCH') }),
+  z.object({ outcome: z.literal('CHANNELS_ALREADY_CONNECTED') }),
+  z.object({ outcome: z.literal('DELETION_PENDING') }),
+  z.object({ outcome: z.literal('FORBIDDEN') }),
+]);
 
 function redirect(result: 'success' | 'error', code?: string): Response {
   const url = frontendUrl();
@@ -20,9 +42,26 @@ function redirect(result: 'success' | 'error', code?: string): Response {
   return new Response(null, { status: response.status, headers });
 }
 
+function channelPayload(channel: ObservedChannel, observedAt: string) {
+  return {
+    youtube_channel_id: channel.youtubeChannelId,
+    title: channel.title,
+    thumbnail_url: channel.thumbnailUrl,
+    published_at: channel.publishedAt,
+    subscriber_count: channel.subscriberCount,
+    subscriber_count_precision: channel.subscriberCountPrecision,
+    hidden_subscriber_count: channel.hiddenSubscriberCount,
+    view_count: channel.viewCount,
+    video_count: channel.videoCount,
+    uploads_playlist_id: channel.uploadsPlaylistId,
+    last_observed_at: observedAt,
+  };
+}
+
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const startedAt = performance.now();
+  let connectionId: string | undefined;
   try {
     if (request.method !== 'GET') throw new AppError('INVALID_REQUEST');
     const callback = parseOAuthCallback(new URL(request.url));
@@ -43,109 +82,58 @@ Deno.serve(async (request) => {
       attempt.code_verifier,
     );
     const newRefreshToken = assertOfflineRefreshToken(tokens);
+    const identity = await fetchGoogleConnectionIdentity(tokens.accessToken);
+
+    if (attempt.intent === 'RECONNECT') {
+      if (!attempt.target_connection_id) throw new AppError('OAUTH_STATE_INVALID');
+      const target = await admin
+        .from('youtube_connections')
+        .select('id, google_subject')
+        .eq('id', attempt.target_connection_id)
+        .eq('user_id', attempt.user_id)
+        .maybeSingle();
+      if (target.error) throw new AppError('SUPABASE_ERROR', { cause: target.error });
+      if (!target.data) throw new AppError('FORBIDDEN');
+      connectionId = target.data.id;
+      if (!reconnectIdentityMatches(target.data.google_subject, identity.subject)) {
+        throw new AppError('YOUTUBE_ACCOUNT_MISMATCH');
+      }
+    } else if (attempt.intent !== 'ADD' || attempt.target_connection_id) {
+      throw new AppError('OAUTH_STATE_INVALID');
+    }
+
     const channels = await fetchOwnedChannels(tokens.accessToken);
     if (channels.length === 0) throw new AppError('YOUTUBE_API_ERROR');
-    const [existingConnectionResult, existingCredentialResult] = await Promise.all([
-      admin
-        .from('youtube_connections')
-        .select('*')
-        .eq('user_id', attempt.user_id)
-        .maybeSingle(),
-      admin.rpc('read_youtube_refresh_token', { p_user_id: attempt.user_id }),
-    ]);
-    if (existingConnectionResult.error || existingCredentialResult.error) {
-      throw new AppError('SUPABASE_ERROR', {
-        cause: existingConnectionResult.error ?? existingCredentialResult.error,
-      });
-    }
-    const existingConnection = existingConnectionResult.data;
-    const existingRefreshToken = existingCredentialResult.data;
-    const vaultResult = await admin.rpc('store_youtube_refresh_token', {
+    const observedAt = new Date().toISOString();
+    const completed = await admin.rpc('complete_youtube_oauth_connection', {
       p_user_id: attempt.user_id,
+      p_intent: attempt.intent,
+      p_target_connection_id: attempt.target_connection_id,
+      p_google_subject: identity.subject,
+      p_google_email: identity.email,
       p_refresh_token: newRefreshToken,
+      p_granted_scopes: tokens.scopes,
+      p_channels: channels.map((channel) => channelPayload(channel, observedAt)),
     });
-    if (vaultResult.error)
-      throw new AppError('SUPABASE_ERROR', { cause: vaultResult.error });
-
-    try {
-      const observedAt = new Date().toISOString();
-      const connection = await admin.from('youtube_connections').upsert({
-        user_id: attempt.user_id,
-        status: 'CONNECTED',
-        connected_at: observedAt,
-        last_authorization_verified_at: observedAt,
-        last_verification_attempt_at: observedAt,
-        verification_retry_count: 0,
-        granted_scopes: tokens.scopes,
-        last_sync_error_code: null,
-      });
-      if (connection.error) {
-        throw new AppError('SUPABASE_ERROR', { cause: connection.error });
-      }
-      const stored = await admin
-        .from('channels')
-        .upsert(
-          channels.map((channel) => ({
-            user_id: attempt.user_id,
-            youtube_channel_id: channel.youtubeChannelId,
-            title: channel.title,
-            thumbnail_url: channel.thumbnailUrl,
-            published_at: channel.publishedAt,
-            subscriber_count: channel.subscriberCount,
-            subscriber_count_precision: channel.subscriberCountPrecision,
-            hidden_subscriber_count: channel.hiddenSubscriberCount,
-            view_count: channel.viewCount,
-            video_count: channel.videoCount,
-            uploads_playlist_id: channel.uploadsPlaylistId,
-            last_observed_at: observedAt,
-          })),
-          { onConflict: 'user_id,youtube_channel_id' },
-        )
-        .select('id');
-      if (stored.error) throw new AppError('SUPABASE_ERROR', { cause: stored.error });
-      if (stored.data.length === 1 && stored.data[0]) {
-        const selected = await admin
-          .from('profiles')
-          .update({ selected_channel_id: stored.data[0].id })
-          .eq('user_id', attempt.user_id);
-        if (selected.error)
-          throw new AppError('SUPABASE_ERROR', { cause: selected.error });
-      }
-    } catch (error) {
-      if (existingRefreshToken) {
-        await admin.rpc('store_youtube_refresh_token', {
-          p_user_id: attempt.user_id,
-          p_refresh_token: existingRefreshToken,
-        });
-      } else {
-        await admin.rpc('delete_youtube_refresh_token', { p_user_id: attempt.user_id });
-      }
-      if (existingConnection) {
-        await admin
-          .from('youtube_connections')
-          .update({
-            status: existingConnection.status,
-            connected_at: existingConnection.connected_at,
-            last_authorization_verified_at:
-              existingConnection.last_authorization_verified_at,
-            last_verification_attempt_at:
-              existingConnection.last_verification_attempt_at,
-            verification_retry_count: existingConnection.verification_retry_count,
-            last_synced_at: existingConnection.last_synced_at,
-            last_sync_started_at: existingConnection.last_sync_started_at,
-            last_sync_error_code: existingConnection.last_sync_error_code,
-            granted_scopes: existingConnection.granted_scopes,
-          })
-          .eq('user_id', attempt.user_id);
-      } else {
-        await admin.from('youtube_connections').delete().eq('user_id', attempt.user_id);
-        await admin.from('channels').delete().eq('user_id', attempt.user_id);
-        await admin
-          .from('profiles')
-          .update({ selected_channel_id: null })
-          .eq('user_id', attempt.user_id);
-      }
-      throw error;
+    if (completed.error) {
+      throw new AppError('SUPABASE_ERROR', { cause: completed.error });
+    }
+    const parsed = completionSchema.safeParse(completed.data);
+    if (!parsed.success) {
+      throw new AppError('SUPABASE_ERROR', { cause: parsed.error });
+    }
+    switch (parsed.data.outcome) {
+      case 'ACCOUNT_MISMATCH':
+        throw new AppError('YOUTUBE_ACCOUNT_MISMATCH');
+      case 'CHANNELS_ALREADY_CONNECTED':
+        throw new AppError('YOUTUBE_CHANNELS_ALREADY_CONNECTED');
+      case 'DELETION_PENDING':
+        throw new AppError('DELETION_PENDING');
+      case 'FORBIDDEN':
+        throw new AppError('FORBIDDEN');
+      case 'CONNECTED':
+        connectionId = parsed.data.connectionId;
+        break;
     }
 
     logEvent({
@@ -154,6 +142,7 @@ Deno.serve(async (request) => {
       stage: 'complete',
       latencyMs: Math.round(performance.now() - startedAt),
       userId: attempt.user_id,
+      connectionId,
     });
     return redirect('success');
   } catch (error) {
@@ -163,6 +152,7 @@ Deno.serve(async (request) => {
       functionName: 'youtube-oauth-callback',
       stage: 'error',
       latencyMs: Math.round(performance.now() - startedAt),
+      connectionId,
       errorCode: typed.code,
     });
     return redirect('error', typed.code);

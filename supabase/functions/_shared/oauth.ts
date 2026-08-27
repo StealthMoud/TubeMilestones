@@ -6,10 +6,21 @@ export const YOUTUBE_READONLY_SCOPE =
   'https://www.googleapis.com/auth/youtube.readonly';
 export const YOUTUBE_ANALYTICS_READONLY_SCOPE =
   'https://www.googleapis.com/auth/yt-analytics.readonly';
+export const OPENID_SCOPE = 'openid';
+export const EMAIL_SCOPE = 'email';
 export const REQUIRED_YOUTUBE_SCOPES = [
+  OPENID_SCOPE,
+  EMAIL_SCOPE,
   YOUTUBE_READONLY_SCOPE,
   YOUTUBE_ANALYTICS_READONLY_SCOPE,
 ] as const;
+
+export type OAuthIntent = 'ADD' | 'RECONNECT';
+
+export const oauthStartRequestSchema = z.discriminatedUnion('intent', [
+  z.object({ intent: z.literal('ADD') }).strict(),
+  z.object({ intent: z.literal('RECONNECT'), connectionId: z.uuid() }).strict(),
+]);
 
 export interface OAuthAttempt {
   state: string;
@@ -18,6 +29,28 @@ export interface OAuthAttempt {
   codeChallenge: string;
   createdAt: string;
   expiresAt: string;
+}
+
+export function buildYouTubeAuthorizationUrl(input: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  codeChallenge: string;
+}): URL {
+  const authorizationUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  authorizationUrl.search = new URLSearchParams({
+    client_id: input.clientId,
+    redirect_uri: input.redirectUri,
+    response_type: 'code',
+    scope: REQUIRED_YOUTUBE_SCOPES.join(' '),
+    state: input.state,
+    code_challenge: input.codeChallenge,
+    code_challenge_method: 'S256',
+    access_type: 'offline',
+    include_granted_scopes: 'true',
+    prompt: 'select_account consent',
+  }).toString();
+  return authorizationUrl;
 }
 
 export async function createOAuthAttempt(now = new Date()): Promise<OAuthAttempt> {
@@ -63,9 +96,16 @@ export function hasRequiredScopes(scopes: readonly string[]): boolean {
 export function assertRequiredScopes(scopes: readonly string[]): void {
   if (!hasRequiredScopes(scopes)) {
     throw new AppError('YOUTUBE_REAUTH_REQUIRED', {
-      message: 'Both required YouTube read-only scopes must be granted.',
+      message: 'Google identity and both YouTube read-only scopes must be granted.',
     });
   }
+}
+
+export function reconnectIdentityMatches(
+  storedSubject: string,
+  authorizedSubject: string,
+): boolean {
+  return storedSubject.startsWith('legacy:') || storedSubject === authorizedSubject;
 }
 
 const tokenResponseSchema = z.object({

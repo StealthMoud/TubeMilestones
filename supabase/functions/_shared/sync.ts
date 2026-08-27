@@ -49,11 +49,13 @@ export function initialDailyAnalyticsStart(
 
 function observedToInsert(
   userId: string,
+  connectionId: string,
   observedAt: string,
   channel: ObservedChannel,
 ) {
   return {
     user_id: userId,
+    connection_id: connectionId,
     youtube_channel_id: channel.youtubeChannelId,
     title: channel.title,
     thumbnail_url: channel.thumbnailUrl,
@@ -86,9 +88,11 @@ function channelCounts(channel: Tables<'channels'> | ObservedChannel) {
 async function finishSync(
   admin: DatabaseClient,
   userId: string,
+  connectionId: string,
   errorCode: string | null,
 ): Promise<void> {
   const result = await admin.rpc('finish_youtube_sync', {
+    p_connection_id: connectionId,
     p_user_id: userId,
     p_error_code: errorCode,
   });
@@ -102,7 +106,32 @@ export async function synchronizeUser(
   now = new Date(),
 ): Promise<SafeSyncResponse> {
   const input = syncRequestSchema.parse(rawInput);
+  let requestedId = input.channelId ?? null;
+  if (!requestedId) {
+    const profile = await admin
+      .from('profiles')
+      .select('selected_channel_id')
+      .eq('user_id', userId)
+      .single();
+    if (profile.error) throw new AppError('SUPABASE_ERROR', { cause: profile.error });
+    requestedId = profile.data.selected_channel_id;
+  }
+  if (!requestedId) throw new AppError('YOUTUBE_NOT_CONNECTED');
+
+  const ownedChannel = await admin
+    .from('channels')
+    .select('id, connection_id')
+    .eq('id', requestedId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (ownedChannel.error) {
+    throw new AppError('SUPABASE_ERROR', { cause: ownedChannel.error });
+  }
+  if (!ownedChannel.data) throw new AppError('FORBIDDEN');
+  const connectionId = ownedChannel.data.connection_id;
+
   const claim = await admin.rpc('claim_youtube_sync', {
+    p_connection_id: connectionId,
     p_user_id: userId,
     p_manual: input.manual,
   });
@@ -114,8 +143,16 @@ export async function synchronizeUser(
   try {
     const [{ data: connection, error: connectionError }, credential] =
       await Promise.all([
-        admin.from('youtube_connections').select('*').eq('user_id', userId).single(),
-        admin.rpc('read_youtube_refresh_token', { p_user_id: userId }),
+        admin
+          .from('youtube_connections')
+          .select('*')
+          .eq('id', connectionId)
+          .eq('user_id', userId)
+          .single(),
+        admin.rpc('read_youtube_refresh_token', {
+          p_connection_id: connectionId,
+          p_user_id: userId,
+        }),
       ]);
     if (connectionError || credential.error) {
       throw new AppError('SUPABASE_ERROR', {
@@ -130,6 +167,7 @@ export async function synchronizeUser(
     );
     if (tokens.refreshToken) {
       const rotation = await admin.rpc('store_youtube_refresh_token', {
+        p_connection_id: connectionId,
         p_user_id: userId,
         p_refresh_token: tokens.refreshToken,
       });
@@ -144,6 +182,7 @@ export async function synchronizeUser(
         verification_retry_count: 0,
         granted_scopes: tokens.scopes,
       })
+      .eq('id', connectionId)
       .eq('user_id', userId);
     if (authorizationUpdate.error) {
       throw new AppError('SUPABASE_ERROR', { cause: authorizationUpdate.error });
@@ -152,52 +191,32 @@ export async function synchronizeUser(
     const { data: previousChannels, error: previousError } = await admin
       .from('channels')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('connection_id', connectionId);
     if (previousError) throw new AppError('SUPABASE_ERROR', { cause: previousError });
 
     const observedChannels = await fetchOwnedChannels(tokens.accessToken);
     if (observedChannels.length === 0) throw new AppError('YOUTUBE_API_ERROR');
-    const { data: storedChannels, error: upsertError } = await admin
-      .from('channels')
-      .upsert(
-        observedChannels.map((channel) =>
-          observedToInsert(userId, now.toISOString(), channel),
+    const { data: storedChannels, error: upsertError } = await admin.rpc(
+      'upsert_youtube_connection_channels',
+      {
+        p_user_id: userId,
+        p_connection_id: connectionId,
+        p_channels: observedChannels.map((channel) =>
+          observedToInsert(userId, connectionId, now.toISOString(), channel),
         ),
-        { onConflict: 'user_id,youtube_channel_id' },
-      )
-      .select('*');
+      },
+    );
     if (upsertError) throw new AppError('SUPABASE_ERROR', { cause: upsertError });
-
-    const { data: profile, error: profileError } = await admin
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    if (profileError) throw new AppError('SUPABASE_ERROR', { cause: profileError });
-    const requestedId = input.channelId ?? profile.selected_channel_id;
-    const selected = requestedId
-      ? (storedChannels ?? []).find((channel) => channel.id === requestedId)
-      : storedChannels?.length === 1
-        ? storedChannels[0]
-        : undefined;
-    if (requestedId && !selected) throw new AppError('FORBIDDEN');
+    const selected = (storedChannels ?? []).find(
+      (channel) => channel.id === requestedId,
+    );
+    if (!selected) throw new AppError('YOUTUBE_API_ERROR');
     const safeChannels = (storedChannels ?? []).map((channel) => ({
       id: channel.id,
       title: channel.title,
       thumbnailUrl: channel.thumbnail_url,
     }));
-    if (!selected) {
-      await finishSync(admin, userId, null);
-      return {
-        kind: 'CHANNEL_SELECTION_REQUIRED',
-        selectedChannelId: null,
-        channels: safeChannels,
-        warnings: [],
-        newMilestoneIds: [],
-        archive: { archivedPeriods: [], configuration: 'ready' },
-      };
-    }
-
     const previous = (previousChannels ?? []).find(
       (channel) => channel.youtube_channel_id === selected.youtube_channel_id,
     );
@@ -349,7 +368,7 @@ export async function synchronizeUser(
     }
 
     const archiveResult = await archiveEligibleMonths(admin, userId, selected.id, now);
-    await finishSync(admin, userId, null);
+    await finishSync(admin, userId, connectionId, null);
     return {
       kind: 'READY',
       selectedChannelId: selected.id,
@@ -365,7 +384,7 @@ export async function synchronizeUser(
     };
   } catch (error) {
     const typed = asAppError(error, 'SUPABASE_ERROR');
-    await finishSync(admin, userId, typed.code).catch(() => undefined);
+    await finishSync(admin, userId, connectionId, typed.code).catch(() => undefined);
     throw typed;
   }
 }

@@ -2,11 +2,36 @@ import { authenticatedUser } from '../_shared/auth.ts';
 import { requiredEnv } from '../_shared/env.ts';
 import { AppError, jsonResponse } from '../_shared/errors.ts';
 import { handleRequest } from '../_shared/handler.ts';
-import { createOAuthAttempt, REQUIRED_YOUTUBE_SCOPES } from '../_shared/oauth.ts';
+import {
+  buildYouTubeAuthorizationUrl,
+  createOAuthAttempt,
+  oauthStartRequestSchema,
+} from '../_shared/oauth.ts';
 
 Deno.serve((request) =>
   handleRequest(request, 'youtube-oauth-start', async () => {
     const { user, admin } = await authenticatedUser(request);
+    const input = oauthStartRequestSchema.safeParse(
+      await request.json().catch(() => null),
+    );
+    if (!input.success) throw new AppError('INVALID_REQUEST', { cause: input.error });
+
+    const targetConnectionId =
+      input.data.intent === 'RECONNECT' ? input.data.connectionId : null;
+    if (targetConnectionId) {
+      const target = await admin
+        .from('youtube_connections')
+        .select('id, status')
+        .eq('id', targetConnectionId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (target.error) throw new AppError('SUPABASE_ERROR', { cause: target.error });
+      if (!target.data) throw new AppError('FORBIDDEN');
+      if (target.data.status === 'DELETION_PENDING') {
+        throw new AppError('DELETION_PENDING');
+      }
+    }
+
     const attempt = await createOAuthAttempt();
     const cleanup = await admin
       .from('youtube_oauth_attempts')
@@ -18,24 +43,19 @@ Deno.serve((request) =>
       user_id: user.id,
       state_hash: attempt.stateHash,
       code_verifier: attempt.codeVerifier,
+      intent: input.data.intent,
+      target_connection_id: targetConnectionId,
       created_at: attempt.createdAt,
       expires_at: attempt.expiresAt,
     });
     if (stored.error) throw new AppError('SUPABASE_ERROR', { cause: stored.error });
 
-    const authorizationUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-    authorizationUrl.search = new URLSearchParams({
-      client_id: requiredEnv('GOOGLE_YOUTUBE_CLIENT_ID'),
-      redirect_uri: requiredEnv('GOOGLE_YOUTUBE_REDIRECT_URI'),
-      response_type: 'code',
-      scope: REQUIRED_YOUTUBE_SCOPES.join(' '),
+    const authorizationUrl = buildYouTubeAuthorizationUrl({
+      clientId: requiredEnv('GOOGLE_YOUTUBE_CLIENT_ID'),
+      redirectUri: requiredEnv('GOOGLE_YOUTUBE_REDIRECT_URI'),
       state: attempt.state,
-      code_challenge: attempt.codeChallenge,
-      code_challenge_method: 'S256',
-      access_type: 'offline',
-      include_granted_scopes: 'true',
-      prompt: 'consent',
-    }).toString();
+      codeChallenge: attempt.codeChallenge,
+    });
     if (authorizationUrl.protocol !== 'https:') {
       throw new AppError('CONFIGURATION_ERROR');
     }

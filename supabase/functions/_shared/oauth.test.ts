@@ -5,9 +5,12 @@ import { pkceChallenge } from './crypto';
 import {
   assertOfflineRefreshToken,
   assertRequiredScopes,
+  buildYouTubeAuthorizationUrl,
   createOAuthAttempt,
+  oauthStartRequestSchema,
   parseGoogleTokenResponse,
   parseOAuthCallback,
+  reconnectIdentityMatches,
   REQUIRED_YOUTUBE_SCOPES,
   validateOAuthAttempt,
 } from './oauth';
@@ -21,6 +24,21 @@ describe('server OAuth security primitives', () => {
     expect(attempt.codeVerifier.length).toBeGreaterThanOrEqual(43);
     expect(attempt.codeChallenge).toBe(await pkceChallenge(attempt.codeVerifier));
     expect(Date.parse(attempt.expiresAt) - now.getTime()).toBe(10 * 60 * 1_000);
+  });
+
+  it('always opens a consented account chooser with the four Client B scopes', () => {
+    const url = buildYouTubeAuthorizationUrl({
+      clientId: 'youtube-client-b',
+      redirectUri: 'https://project.supabase.co/functions/v1/youtube-oauth-callback',
+      state: 'opaque-state',
+      codeChallenge: 'pkce-challenge',
+    });
+    expect(url.origin).toBe('https://accounts.google.com');
+    expect(url.searchParams.get('prompt')).toBe('select_account consent');
+    expect(url.searchParams.get('scope')?.split(' ')).toEqual(REQUIRED_YOUTUBE_SCOPES);
+    expect(url.searchParams.has('login_hint')).toBe(false);
+    expect(url.searchParams.get('access_type')).toBe('offline');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
   });
 
   it('rejects wrong, expired, and reused state', async () => {
@@ -73,6 +91,12 @@ describe('server OAuth security primitives', () => {
   });
 
   it('requires both exact YouTube scopes and an offline refresh token', () => {
+    expect(REQUIRED_YOUTUBE_SCOPES).toEqual([
+      'openid',
+      'email',
+      'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/yt-analytics.readonly',
+    ]);
     expect(() => assertRequiredScopes(REQUIRED_YOUTUBE_SCOPES)).not.toThrow();
     expect(() => assertRequiredScopes([REQUIRED_YOUTUBE_SCOPES[0]])).toThrow(AppError);
     const tokens = parseGoogleTokenResponse({
@@ -81,6 +105,36 @@ describe('server OAuth security primitives', () => {
       scope: REQUIRED_YOUTUBE_SCOPES.join(' '),
     });
     expect(() => assertOfflineRefreshToken(tokens)).toThrow(AppError);
+  });
+
+  it('validates explicit add and connection-scoped reconnect intents', () => {
+    expect(oauthStartRequestSchema.parse({ intent: 'ADD' })).toEqual({
+      intent: 'ADD',
+    });
+    expect(
+      oauthStartRequestSchema.parse({
+        intent: 'RECONNECT',
+        connectionId: '86d4f90b-5aa1-43b0-9625-6fe933b730af',
+      }),
+    ).toEqual({
+      intent: 'RECONNECT',
+      connectionId: '86d4f90b-5aa1-43b0-9625-6fe933b730af',
+    });
+    expect(() => oauthStartRequestSchema.parse({ intent: 'RECONNECT' })).toThrow();
+    expect(() =>
+      oauthStartRequestSchema.parse({
+        intent: 'ADD',
+        connectionId: crypto.randomUUID(),
+      }),
+    ).toThrow();
+  });
+
+  it('rejects the wrong Google identity on reconnect before mutation', () => {
+    expect(reconnectIdentityMatches('google-subject-a', 'google-subject-a')).toBe(true);
+    expect(reconnectIdentityMatches('google-subject-a', 'google-subject-b')).toBe(
+      false,
+    );
+    expect(reconnectIdentityMatches('legacy:user-id', 'google-subject-a')).toBe(true);
   });
 
   it('fails reconnect before mutation when Google omits a new refresh token', () => {

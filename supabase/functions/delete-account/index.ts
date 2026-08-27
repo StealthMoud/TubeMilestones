@@ -34,7 +34,7 @@ Deno.serve((request) =>
       .single();
     if (created.error) throw new AppError('SUPABASE_ERROR', { cause: created.error });
     try {
-      await runPurgePipeline(databasePurgeDependencies(admin, user.id), true);
+      await runPurgePipeline(databasePurgeDependencies(admin, user.id, null), true);
       const completed = await admin
         .from('data_deletion_requests')
         .update({ status: 'COMPLETE', completed_at: new Date().toISOString() })

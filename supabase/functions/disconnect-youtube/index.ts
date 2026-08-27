@@ -1,15 +1,33 @@
+import { z } from 'zod';
 import { authenticatedUser } from '../_shared/auth.ts';
 import { databasePurgeDependencies, runPurgePipeline } from '../_shared/deletion.ts';
 import { AppError, jsonResponse } from '../_shared/errors.ts';
 import { handleRequest } from '../_shared/handler.ts';
 
+const disconnectRequestSchema = z.object({ connectionId: z.uuid() });
+
 Deno.serve((request) =>
   handleRequest(request, 'disconnect-youtube', async () => {
     const { user, admin } = await authenticatedUser(request);
+    const input = disconnectRequestSchema.safeParse(
+      await request.json().catch(() => null),
+    );
+    if (!input.success) throw new AppError('INVALID_REQUEST', { cause: input.error });
+    const connectionId = input.data.connectionId;
+    const owned = await admin
+      .from('youtube_connections')
+      .select('id')
+      .eq('id', connectionId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (owned.error) throw new AppError('SUPABASE_ERROR', { cause: owned.error });
+    if (!owned.data) throw new AppError('FORBIDDEN');
+
     const { data: active, error: activeError } = await admin
       .from('data_deletion_requests')
       .select('*')
       .eq('user_id', user.id)
+      .eq('connection_id', connectionId)
       .eq('type', 'YOUTUBE_DISCONNECT')
       .in('status', ['PENDING', 'RUNNING', 'FAILED_RETRYABLE'])
       .order('requested_at', { ascending: false })
@@ -20,7 +38,11 @@ Deno.serve((request) =>
     if (!deletionId) {
       const created = await admin
         .from('data_deletion_requests')
-        .insert({ user_id: user.id, type: 'YOUTUBE_DISCONNECT' })
+        .insert({
+          user_id: user.id,
+          connection_id: connectionId,
+          type: 'YOUTUBE_DISCONNECT',
+        })
         .select('id')
         .single();
       if (created.error) throw new AppError('SUPABASE_ERROR', { cause: created.error });
@@ -31,7 +53,10 @@ Deno.serve((request) =>
       .update({ status: 'RUNNING', started_at: new Date().toISOString() })
       .eq('id', deletionId);
     try {
-      await runPurgePipeline(databasePurgeDependencies(admin, user.id), false);
+      await runPurgePipeline(
+        databasePurgeDependencies(admin, user.id, connectionId),
+        false,
+      );
       const completed = await admin
         .from('data_deletion_requests')
         .update({

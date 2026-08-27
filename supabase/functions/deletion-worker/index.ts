@@ -52,7 +52,11 @@ Deno.serve((request) =>
         await processDeletionClaim(deletion, {
           purge: () =>
             runPurgePipeline(
-              databasePurgeDependencies(admin, deletion.user_id),
+              databasePurgeDependencies(
+                admin,
+                deletion.user_id,
+                deletion.connection_id,
+              ),
               deletion.type === 'ACCOUNT_DELETE',
             ),
           complete: () =>

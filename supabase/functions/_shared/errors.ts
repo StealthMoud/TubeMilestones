@@ -12,6 +12,9 @@ export type ErrorCode =
   | 'SYNC_IN_PROGRESS'
   | 'SYNC_COOLDOWN'
   | 'GOOGLE_REFRESH_FAILED'
+  | 'GOOGLE_IDENTITY_FAILED'
+  | 'YOUTUBE_ACCOUNT_MISMATCH'
+  | 'YOUTUBE_CHANNELS_ALREADY_CONNECTED'
   | 'YOUTUBE_QUOTA'
   | 'YOUTUBE_API_ERROR'
   | 'ANALYTICS_UNAVAILABLE'
@@ -36,6 +39,9 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   SYNC_IN_PROGRESS: 409,
   SYNC_COOLDOWN: 429,
   GOOGLE_REFRESH_FAILED: 502,
+  GOOGLE_IDENTITY_FAILED: 502,
+  YOUTUBE_ACCOUNT_MISMATCH: 409,
+  YOUTUBE_CHANNELS_ALREADY_CONNECTED: 409,
   YOUTUBE_QUOTA: 429,
   YOUTUBE_API_ERROR: 502,
   ANALYTICS_UNAVAILABLE: 502,
@@ -56,11 +62,16 @@ const PUBLIC_MESSAGES: Record<ErrorCode, string> = {
   OAUTH_STATE_USED: 'This authorization request was already used. Please start again.',
   OAUTH_DENIED: 'YouTube access was not approved.',
   OAUTH_CODE_MISSING: 'Google did not return an authorization code.',
-  YOUTUBE_NOT_CONNECTED: 'Connect YouTube to continue.',
+  YOUTUBE_NOT_CONNECTED: 'Connect a YouTube account to continue.',
   YOUTUBE_REAUTH_REQUIRED: 'Reconnect YouTube to continue.',
   SYNC_IN_PROGRESS: 'Another sync is already in progress.',
   SYNC_COOLDOWN: 'TubeMilestones refreshed recently. Please wait a few minutes.',
   GOOGLE_REFRESH_FAILED: 'Google authorization could not be refreshed.',
+  GOOGLE_IDENTITY_FAILED: 'The connected Google account could not be identified.',
+  YOUTUBE_ACCOUNT_MISMATCH:
+    'Choose the same Google account that belongs to this YouTube connection.',
+  YOUTUBE_CHANNELS_ALREADY_CONNECTED:
+    'Every channel returned by this Google account is already tracked.',
   YOUTUBE_QUOTA: 'YouTube quota is temporarily unavailable.',
   YOUTUBE_API_ERROR: 'YouTube data is temporarily unavailable.',
   ANALYTICS_UNAVAILABLE: 'YouTube Analytics is temporarily unavailable.',

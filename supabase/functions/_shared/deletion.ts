@@ -42,63 +42,104 @@ export function authUserIsAlreadyAbsent(error: unknown): boolean {
   return candidate.status === 404 || candidate.code === 'user_not_found';
 }
 
+interface StoredCredential {
+  connectionId: string;
+  grantedScopes: string[];
+  refreshToken: string | null;
+}
+
 export function databasePurgeDependencies(
   admin: DatabaseClient,
   userId: string,
+  connectionId: string | null,
 ): PurgeDependencies {
-  let refreshCredential: string | null = null;
-  let grantedScopes: string[] = [];
+  let credentials: StoredCredential[] = [];
+  let channelIds: string[] = [];
+  const scoped = connectionId !== null;
+
   return {
     async markUnavailable() {
-      const { data: connection, error } = await admin
+      let connectionQuery = admin
         .from('youtube_connections')
-        .select('granted_scopes')
-        .eq('user_id', userId)
-        .maybeSingle();
-      ensureNoError(error);
-      grantedScopes = connection?.granted_scopes ?? [];
-      const credentialResult = await admin.rpc('read_youtube_refresh_token', {
-        p_user_id: userId,
-      });
-      ensureNoError(credentialResult.error);
-      refreshCredential = credentialResult.data;
-      const update = await admin
-        .from('youtube_connections')
-        .update({ status: 'DELETION_PENDING' })
+        .select('id, granted_scopes')
         .eq('user_id', userId);
-      ensureNoError(update.error);
+      if (connectionId) connectionQuery = connectionQuery.eq('id', connectionId);
+      const connections = await connectionQuery;
+      ensureNoError(connections.error);
+
+      credentials = await Promise.all(
+        (connections.data ?? []).map(async (connection) => {
+          const credential = await admin.rpc('read_youtube_refresh_token', {
+            p_connection_id: connection.id,
+            p_user_id: userId,
+          });
+          ensureNoError(credential.error);
+          return {
+            connectionId: connection.id,
+            grantedScopes: connection.granted_scopes,
+            refreshToken: credential.data,
+          };
+        }),
+      );
+
+      if ((connections.data?.length ?? 0) > 0) {
+        const ids = (connections.data ?? []).map(({ id }) => id);
+        const unavailable = await admin
+          .from('youtube_connections')
+          .update({ status: 'DELETION_PENDING' })
+          .eq('user_id', userId)
+          .in('id', ids);
+        ensureNoError(unavailable.error);
+      }
+
+      let channelQuery = admin.from('channels').select('id').eq('user_id', userId);
+      if (connectionId) channelQuery = channelQuery.eq('connection_id', connectionId);
+      const channels = await channelQuery;
+      ensureNoError(channels.error);
+      channelIds = (channels.data ?? []).map(({ id }) => id);
     },
     async revokeGoogle() {
-      if (!refreshCredential) return;
-      try {
-        const refreshed = await refreshGoogleAccessToken(
-          refreshCredential,
-          grantedScopes,
-        );
-        await revokeGoogleCredential(refreshed.accessToken);
-      } catch {
-        // Revocation is best effort. Destroying the Vault credential still stops access.
+      for (const credential of credentials) {
+        if (!credential.refreshToken) continue;
+        try {
+          const refreshed = await refreshGoogleAccessToken(
+            credential.refreshToken,
+            credential.grantedScopes,
+          );
+          await revokeGoogleCredential(refreshed.accessToken);
+        } catch {
+          // Revocation is best effort. The connection-scoped Vault delete follows.
+        }
       }
     },
     async deleteVaultCredential() {
-      const result = await admin.rpc('delete_youtube_refresh_token', {
-        p_user_id: userId,
-      });
-      ensureNoError(result.error);
-      refreshCredential = null;
+      const ids = scoped
+        ? [connectionId]
+        : credentials.map(({ connectionId: id }) => id);
+      for (const id of ids) {
+        if (!id) continue;
+        const deleted = await admin.rpc('delete_youtube_refresh_token', {
+          p_connection_id: id,
+          p_user_id: userId,
+        });
+        ensureNoError(deleted.error);
+      }
+      credentials = [];
     },
     async deleteArchives() {
-      const { data: manifests, error } = await admin
+      if (channelIds.length === 0) return;
+      const manifests = await admin
         .from('archive_manifests')
         .select('id, object_key')
-        .eq('user_id', userId);
-      ensureNoError(error);
-      if ((manifests?.length ?? 0) === 0) return;
+        .eq('user_id', userId)
+        .in('channel_id', channelIds);
+      ensureNoError(manifests.error);
+      if ((manifests.data?.length ?? 0) === 0) return;
       if (!isR2Configured()) {
         throw new AppError('R2_UNAVAILABLE', { retryable: true });
       }
       const r2 = new R2Store();
-      for (const manifest of manifests ?? []) {
+      for (const manifest of manifests.data ?? []) {
         await r2.delete(manifest.object_key);
         if (await r2.exists(manifest.object_key)) {
           throw new AppError('R2_UNAVAILABLE', { retryable: true });
@@ -107,10 +148,47 @@ export function databasePurgeDependencies(
       const deleted = await admin
         .from('archive_manifests')
         .delete()
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .in(
+          'id',
+          (manifests.data ?? []).map(({ id }) => id),
+        );
       ensureNoError(deleted.error);
     },
     async deleteAuthorizedRows() {
+      if (connectionId) {
+        const deleted = await admin
+          .from('youtube_connections')
+          .delete()
+          .eq('id', connectionId)
+          .eq('user_id', userId);
+        ensureNoError(deleted.error);
+
+        const profile = await admin
+          .from('profiles')
+          .select('selected_channel_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        ensureNoError(profile.error);
+        if (profile.data && profile.data.selected_channel_id === null) {
+          const fallback = await admin
+            .from('channels')
+            .select('id')
+            .eq('user_id', userId)
+            .order('created_at')
+            .order('id')
+            .limit(1)
+            .maybeSingle();
+          ensureNoError(fallback.error);
+          const selected = await admin
+            .from('profiles')
+            .update({ selected_channel_id: fallback.data?.id ?? null })
+            .eq('user_id', userId);
+          ensureNoError(selected.error);
+        }
+        return;
+      }
+
       for (const table of [
         'analytics_daily',
         'analytics_summary',

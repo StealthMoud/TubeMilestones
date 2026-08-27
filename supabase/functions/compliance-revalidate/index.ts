@@ -35,19 +35,25 @@ async function updateOwnedConnection(
   const result = await admin
     .from('youtube_connections')
     .update(values)
+    .eq('id', connection.connection_id)
     .eq('user_id', connection.user_id)
     .eq('verification_claim_id', connection.verification_claim_id)
-    .select('user_id')
+    .select('id')
     .maybeSingle();
   if (result.error) throw new AppError('SUPABASE_ERROR', { cause: result.error });
   return Boolean(result.data);
 }
 
-async function queueComplianceDeletion(userId: string, admin: Admin): Promise<boolean> {
+async function queueComplianceDeletion(
+  userId: string,
+  connectionId: string,
+  admin: Admin,
+): Promise<boolean> {
   const existing = await admin
     .from('data_deletion_requests')
     .select('id')
     .eq('user_id', userId)
+    .eq('connection_id', connectionId)
     .eq('type', 'COMPLIANCE_REVOKED')
     .in('status', ['PENDING', 'RUNNING', 'FAILED_RETRYABLE'])
     .limit(1)
@@ -56,6 +62,7 @@ async function queueComplianceDeletion(userId: string, admin: Admin): Promise<bo
   if (existing.data) return true;
   const created = await admin.from('data_deletion_requests').insert({
     user_id: userId,
+    connection_id: connectionId,
     type: 'COMPLIANCE_REVOKED',
     status: 'PENDING',
   });
@@ -77,6 +84,7 @@ function processConnection(
     {
       async readCredential() {
         const credential = await admin.rpc('read_youtube_refresh_token', {
+          p_connection_id: connection.connection_id,
           p_user_id: connection.user_id,
         });
         if (credential.error) {
@@ -88,6 +96,7 @@ function processConnection(
       refreshCredential: refreshGoogleAccessToken,
       async storeRotatedCredential(refreshToken) {
         const rotated = await admin.rpc('store_youtube_refresh_token', {
+          p_connection_id: connection.connection_id,
           p_user_id: connection.user_id,
           p_refresh_token: refreshToken,
         });
@@ -115,7 +124,7 @@ function processConnection(
           verification_claimed_at: null,
         }),
       queueAuthorizedDataPurge: () =>
-        queueComplianceDeletion(connection.user_id, admin),
+        queueComplianceDeletion(connection.user_id, connection.connection_id, admin),
       errorCode: (error) => asAppError(error, 'GOOGLE_REFRESH_FAILED').code,
     },
     now,

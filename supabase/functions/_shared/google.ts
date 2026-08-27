@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { requiredEnv } from './env.ts';
 import { AppError } from './errors.ts';
 import {
@@ -9,6 +10,21 @@ import {
 
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke';
+const USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userinfo';
+
+const userInfoSchema = z
+  .object({
+    sub: z.string().min(1).max(255),
+    email: z.email().max(320).optional(),
+    email_verified: z.boolean().optional(),
+  })
+  .passthrough();
+
+export interface GoogleConnectionIdentity {
+  subject: string;
+  email: string | null;
+  emailVerified: boolean;
+}
 
 async function postTokenForm(form: URLSearchParams): Promise<GoogleTokenSet> {
   let response: Response;
@@ -75,6 +91,40 @@ export async function refreshGoogleAccessToken(
     tokens.scopes.length > 0 ? tokens.scopes : [...previouslyGrantedScopes];
   assertRequiredScopes(scopes);
   return { ...tokens, scopes };
+}
+
+export async function fetchGoogleConnectionIdentity(
+  accessToken: string,
+): Promise<GoogleConnectionIdentity> {
+  let response: Response;
+  try {
+    response = await fetch(USERINFO_ENDPOINT, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (error) {
+    throw new AppError('GOOGLE_IDENTITY_FAILED', {
+      cause: error,
+      retryable: true,
+    });
+  }
+  const body = (await response.json().catch(() => null)) as unknown;
+  const parsed = userInfoSchema.safeParse(body);
+  if (!response.ok || !parsed.success) {
+    throw new AppError('GOOGLE_IDENTITY_FAILED', {
+      cause: parsed.success ? undefined : parsed.error,
+      retryable: response.status >= 500,
+    });
+  }
+  const emailVerified = parsed.data.email_verified === true;
+  return {
+    subject: parsed.data.sub,
+    email: emailVerified ? (parsed.data.email ?? null) : null,
+    emailVerified,
+  };
 }
 
 export async function revokeGoogleCredential(token: string): Promise<boolean> {
