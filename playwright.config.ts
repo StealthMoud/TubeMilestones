@@ -22,6 +22,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       VITE_ENABLE_DEMO: 'true',
+      VITE_YOUTUBE_OAUTH_MODE: 'testing',
     },
   },
   projects: [

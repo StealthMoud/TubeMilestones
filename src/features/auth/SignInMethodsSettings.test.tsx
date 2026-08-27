@@ -55,7 +55,9 @@ describe('SignInMethodsSettings', () => {
         updatePassword={updatePassword}
       />,
     );
-    expect(screen.queryByText('Google')).toBeNull();
+    expect(screen.getByText('Google').closest('div')).toHaveTextContent(
+      'Not connected',
+    );
     await user.click(screen.getByRole('button', { name: 'Change password' }));
     expect(screen.getAllByRole('button', { name: 'Show password' })).toHaveLength(2);
     await user.type(screen.getByLabelText('New password'), 'new password');

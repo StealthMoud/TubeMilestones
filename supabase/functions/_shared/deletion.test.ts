@@ -22,6 +22,42 @@ function dependencies(log: string[], failAt?: string): PurgeDependencies {
   };
 }
 
+function accountDependencies(
+  connectionCount: number,
+  log: string[],
+): PurgeDependencies {
+  const perConnection = (stage: string) => {
+    for (let index = 0; index < connectionCount; index += 1) {
+      log.push(`${stage}:${index + 1}`);
+    }
+    return Promise.resolve();
+  };
+  return {
+    markUnavailable: () => {
+      log.push(`discover:${connectionCount}`);
+      return Promise.resolve();
+    },
+    revokeGoogle: () => perConnection('revoke'),
+    deleteVaultCredential: () => perConnection('vault'),
+    deleteArchives: () => {
+      log.push('archives');
+      return Promise.resolve();
+    },
+    deleteAuthorizedRows: () => {
+      log.push('youtube-data');
+      return Promise.resolve();
+    },
+    deleteAccountRows: () => {
+      log.push('profile');
+      return Promise.resolve();
+    },
+    deleteAuthUser: () => {
+      log.push('auth');
+      return Promise.resolve();
+    },
+  };
+}
+
 describe('cross-system deletion pipeline', () => {
   it('uses the required order and retains the app account on disconnect', async () => {
     const log: string[] = [];
@@ -42,6 +78,28 @@ describe('cross-system deletion pipeline', () => {
       'auth',
     ]);
   });
+
+  it.each([
+    { label: 'zero', connectionCount: 0 },
+    { label: 'one', connectionCount: 1 },
+    { label: 'multiple', connectionCount: 3 },
+  ])(
+    'deletes a TubeMilestones account with $label YouTube connections',
+    async ({ connectionCount }) => {
+      const log: string[] = [];
+      await expect(
+        runPurgePipeline(accountDependencies(connectionCount, log), true),
+      ).resolves.toBeUndefined();
+      expect(log).toContain(`discover:${connectionCount}`);
+      expect(log.filter((step) => step.startsWith('revoke:'))).toHaveLength(
+        connectionCount,
+      );
+      expect(log.filter((step) => step.startsWith('vault:'))).toHaveLength(
+        connectionCount,
+      );
+      expect(log.slice(-4)).toEqual(['archives', 'youtube-data', 'profile', 'auth']);
+    },
+  );
 
   it('continues credential and data deletion when Google revocation fails', async () => {
     const log: string[] = [];

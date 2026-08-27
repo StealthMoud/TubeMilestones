@@ -23,6 +23,10 @@ const multiAccount = readFileSync(
   resolve('supabase/migrations/20260827120000_multi_youtube_accounts.sql'),
   'utf8',
 );
+const profileIdentity = readFileSync(
+  resolve('supabase/migrations/20260827200000_profile_display_name.sql'),
+  'utf8',
+);
 const tables = [
   'profiles',
   'youtube_connections',
@@ -89,6 +93,19 @@ describe('database security migration', () => {
     );
     expect(schema).toContain(
       'grant select on table public.archive_manifests to authenticated;',
+    );
+  });
+
+  it('adds only a constrained, own-user display-name write surface', () => {
+    expect(profileIdentity).toContain('add column display_name text;');
+    expect(profileIdentity).toContain('char_length(display_name) between 1 and 80');
+    expect(profileIdentity).toContain("display_name !~ '^[[:space:]]|[[:space:]]$'");
+    expect(profileIdentity).toContain(
+      'grant update (display_name) on table public.profiles to authenticated;',
+    );
+    expect(profileIdentity).not.toContain('create policy');
+    expect(schema).toMatch(
+      /create policy profiles_update_own on public\.profiles[\s\S]+?for update to authenticated[\s\S]+?auth\.uid\(\)\) = user_id[\s\S]+?with check \(\(select auth\.uid\(\)\) = user_id/u,
     );
   });
 

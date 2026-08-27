@@ -17,6 +17,24 @@ export const REQUIRED_YOUTUBE_SCOPES = [
 
 export type OAuthIntent = 'ADD' | 'RECONNECT';
 
+export interface StoredOAuthAttemptStatus {
+  intent: OAuthIntent;
+  targetConnectionId: string | null;
+  expiresAt: string;
+  usedAt: string | null;
+}
+
+export function oauthAttemptStateError(
+  attempt: StoredOAuthAttemptStatus | null,
+  now = new Date(),
+): 'OAUTH_STATE_INVALID' | 'OAUTH_STATE_EXPIRED' | 'OAUTH_STATE_USED' | null {
+  if (!attempt) return 'OAUTH_STATE_INVALID';
+  if (attempt.usedAt) return 'OAUTH_STATE_USED';
+  const expiresAt = new Date(attempt.expiresAt).getTime();
+  if (!Number.isFinite(expiresAt)) return 'OAUTH_STATE_INVALID';
+  return expiresAt <= now.getTime() ? 'OAUTH_STATE_EXPIRED' : null;
+}
+
 export const oauthStartRequestSchema = z.discriminatedUnion('intent', [
   z.object({ intent: z.literal('ADD') }).strict(),
   z.object({ intent: z.literal('RECONNECT'), connectionId: z.uuid() }).strict(),

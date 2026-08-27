@@ -12,12 +12,15 @@ public repository Actions variables:
 VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 VITE_PRIVACY_CONTACT_EMAIL=privacy@YOUR_OWNED_DOMAIN
+VITE_YOUTUBE_OAUTH_MODE=testing
 ```
 
 Do not add Google secrets, YouTube refresh tokens, R2 keys, archive keys, automation
 secrets, Supabase secret keys, or service-role credentials to repository variables. The
-contact address is intentionally public once built. Do not set `VITE_ENABLE_DEMO` in
-production.
+contact address and OAuth presentation mode are intentionally public once built. Keep
+the mode at `testing` while the Google consent screen is restricted to approved test
+users; this only improves denial guidance and does not alter OAuth requests or provider
+configuration. Do not set `VITE_ENABLE_DEMO` in production.
 
 The workflow builds only `dist`, uses project-path-safe relative assets and HashRouter,
 and deploys through the protected `github-pages` environment. Expected URL:
@@ -36,7 +39,7 @@ https://stealthmoud.github.io/TubeMilestones/
 6. Install only compliance and deletion Cron jobs.
 7. Test OAuth, initial sync, archive round trip, disconnect, and account deletion in a
    non-production account.
-8. Add the three public frontend variables and push `main`.
+8. Add the four public frontend variables and push `main`.
 
 ## Pre-push gate
 
@@ -69,7 +72,7 @@ CI repeats these responsibilities, with a minimal database service for migration
 - Pages workflow and CI are green for the exact commit.
 - `/`, `/#/journey`, `/#/analytics`, `/#/settings`, `/privacy.html`, and `/terms.html`
   load at the project path without asset errors.
-- The production bundle contains only the three public frontend configuration values.
+- The production bundle contains only the four public frontend configuration values.
 - Email/password signup, confirmation, login, forgot-password, and recovery return to
   the approved Pages application callback without initiating YouTube OAuth.
 - Google login returns to the Pages project path.

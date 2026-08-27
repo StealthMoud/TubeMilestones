@@ -8,6 +8,7 @@ import { userMessageForError } from '../../services/errors';
 import { BrandMark } from '../common/BrandMark';
 import { ChannelAvatar } from '../common/ChannelAvatar';
 import { ChannelSwitcher } from '../common/ChannelSwitcher';
+import { ProfileMenu } from '../common/ProfileMenu';
 import { MilestoneCelebration } from '../feedback/MilestoneCelebration';
 
 const NAV_ITEMS = [
@@ -47,10 +48,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     warnings,
     error,
     isDemo,
+    authUser,
+    displayName,
+    profileInitials,
     refresh,
     chooseChannel,
     addYouTubeAccount,
     reconnectYouTubeAccount,
+    signOut,
     exitDemo,
   } = useTubeMilestones();
   if (!data) return null;
@@ -133,6 +138,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={status === 'SYNCING' ? 'is-spinning' : undefined}
               />
             </button>
+            <ProfileMenu
+              displayName={displayName}
+              initials={profileInitials}
+              email={authUser?.email ?? null}
+              onAddYouTubeAccount={addYouTubeAccount}
+              onSignOut={signOut}
+              addDisabled={status === 'AUTHORIZING' || isDemo}
+              signOutDisabled={isDemo}
+            />
           </div>
         </header>
 

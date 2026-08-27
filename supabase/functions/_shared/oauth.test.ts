@@ -9,6 +9,7 @@ import {
   createOAuthAttempt,
   isLegacyGoogleSubject,
   oauthStartRequestSchema,
+  oauthAttemptStateError,
   parseGoogleTokenResponse,
   parseOAuthCallback,
   REQUIRED_YOUTUBE_SCOPES,
@@ -24,6 +25,16 @@ describe('server OAuth security primitives', () => {
     expect(attempt.codeVerifier.length).toBeGreaterThanOrEqual(43);
     expect(attempt.codeChallenge).toBe(await pkceChallenge(attempt.codeVerifier));
     expect(Date.parse(attempt.expiresAt) - now.getTime()).toBe(10 * 60 * 1_000);
+  });
+
+  it('creates a different state and PKCE verifier for every retry', async () => {
+    const now = new Date('2026-08-27T12:00:00.000Z');
+    const first = await createOAuthAttempt(now);
+    const retry = await createOAuthAttempt(now);
+    expect(retry.state).not.toBe(first.state);
+    expect(retry.stateHash).not.toBe(first.stateHash);
+    expect(retry.codeVerifier).not.toBe(first.codeVerifier);
+    expect(retry.codeChallenge).not.toBe(first.codeChallenge);
   });
 
   it('always opens a consented account chooser with the four Client B scopes', () => {
@@ -127,6 +138,44 @@ describe('server OAuth security primitives', () => {
         connectionId: crypto.randomUUID(),
       }),
     ).toThrow();
+  });
+
+  it('distinguishes invalid, expired, and consumed OAuth attempts', () => {
+    const now = new Date('2026-08-27T12:00:00.000Z');
+    expect(oauthAttemptStateError(null, now)).toBe('OAUTH_STATE_INVALID');
+    expect(
+      oauthAttemptStateError(
+        {
+          intent: 'ADD',
+          targetConnectionId: null,
+          expiresAt: '2026-08-27T11:59:59.000Z',
+          usedAt: null,
+        },
+        now,
+      ),
+    ).toBe('OAUTH_STATE_EXPIRED');
+    expect(
+      oauthAttemptStateError(
+        {
+          intent: 'RECONNECT',
+          targetConnectionId: '71000000-0000-4000-8000-000000000001',
+          expiresAt: '2026-08-27T12:10:00.000Z',
+          usedAt: '2026-08-27T11:58:00.000Z',
+        },
+        now,
+      ),
+    ).toBe('OAUTH_STATE_USED');
+    expect(
+      oauthAttemptStateError(
+        {
+          intent: 'ADD',
+          targetConnectionId: null,
+          expiresAt: '2026-08-27T12:10:00.000Z',
+          usedAt: null,
+        },
+        now,
+      ),
+    ).toBeNull();
   });
 
   it('recognizes only explicit migration markers as legacy subjects', () => {

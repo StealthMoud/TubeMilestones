@@ -2,6 +2,7 @@ import { ArrowRight, Check, LockKeyhole } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BrandMark } from '../../components/common/BrandMark';
 import { Button } from '../../components/common/Button';
+import { ProfileMenu } from '../../components/common/ProfileMenu';
 import { isDemoModeAllowed } from '../../fixtures/demoData';
 import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 import { userMessageForError } from '../../services/errors';
@@ -64,11 +65,15 @@ export function LandingPage() {
     error,
     oauthConfigured,
     authUser,
+    connections,
+    displayName,
+    profileInitials,
     signInWithGoogle,
     signInWithPassword,
     signUpWithPassword,
     requestPasswordReset,
     addYouTubeAccount,
+    signOut,
     startDemo,
   } = useTubeMilestones();
   const signedIn = Boolean(authUser);
@@ -82,17 +87,29 @@ export function LandingPage() {
           <BrandMark size={34} />
           <span>TubeMilestones</span>
         </a>
-        <nav aria-label="Public navigation">
-          <a href="./privacy.html">Privacy</a>
-          <a href="./terms.html">Terms</a>
-          <a
-            href="https://github.com/StealthMoud/TubeMilestones"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub
-          </a>
-        </nav>
+        <div className="landing-header__actions">
+          <nav aria-label="Public navigation">
+            <a href="./privacy.html">Privacy</a>
+            <a href="./terms.html">Terms</a>
+            <a
+              href="https://github.com/StealthMoud/TubeMilestones"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub
+            </a>
+          </nav>
+          {signedIn ? (
+            <ProfileMenu
+              displayName={displayName}
+              initials={profileInitials}
+              email={authUser?.email ?? null}
+              onAddYouTubeAccount={addYouTubeAccount}
+              onSignOut={signOut}
+              addDisabled={connecting || !oauthConfigured}
+            />
+          ) : null}
+        </div>
       </header>
 
       <main className="landing-main">
@@ -107,7 +124,7 @@ export function LandingPage() {
             <h1>
               {signedIn ? (
                 <>
-                  Connect your <em>YouTube account.</em>
+                  Connect a <em>YouTube account.</em>
                 </>
               ) : (
                 <>
@@ -117,27 +134,37 @@ export function LandingPage() {
             </h1>
             <p className="landing-hero__lede">
               {signedIn
-                ? 'You’re signed in. Connect a YouTube account to choose a channel and begin tracking. Your YouTube account can be different from the account you use to sign in.'
+                ? 'Choose the Google account that owns the YouTube channel you want to track.'
                 : "See how far you've come. Know what's next. TubeMilestones turns channel data into a personal progression path."}
             </p>
 
             {signedIn ? (
-              <div className="landing-hero__actions">
-                <Button
-                  icon={<ArrowRight size={18} aria-hidden="true" />}
-                  onClick={() => void addYouTubeAccount()}
-                  disabled={connecting || !oauthConfigured}
-                >
-                  {connecting ? 'Opening Google…' : 'Connect YouTube account'}
-                </Button>
-                <Link className="button button--quiet" to="/settings">
-                  Account settings
-                </Link>
-                {demoAllowed ? (
-                  <Button variant="quiet" onClick={() => startDemo('small')}>
-                    Explore demo
+              <div className="landing-connection-step">
+                <div className="landing-account-context">
+                  <span>TubeMilestones login</span>
+                  <strong>{authUser?.email ?? 'Signed-in account'}</strong>
+                  <p>Your YouTube account can be a different Google account.</p>
+                </div>
+                <div className="landing-hero__actions">
+                  <Button
+                    icon={<ArrowRight size={18} aria-hidden="true" />}
+                    onClick={() => void addYouTubeAccount()}
+                    disabled={connecting || !oauthConfigured}
+                  >
+                    {connecting ? 'Opening Google…' : 'Connect YouTube account'}
                   </Button>
-                ) : null}
+                  <Link className="button button--quiet" to="/settings">
+                    Account settings
+                  </Link>
+                  {demoAllowed ? (
+                    <Button variant="quiet" onClick={() => startDemo('small')}>
+                      Explore demo
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="landing-connected-count">
+                  Already connected accounts: <strong>{connections.length}</strong>
+                </p>
               </div>
             ) : null}
 

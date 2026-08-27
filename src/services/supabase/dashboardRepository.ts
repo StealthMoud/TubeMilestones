@@ -13,8 +13,10 @@ import { TubeMilestonesError } from '../errors';
 import { requireSupabaseClient } from './client';
 
 export type Connection = Tables<'youtube_connections'>;
+export type Profile = Tables<'profiles'>;
 
-export interface CloudDashboard {
+export interface CloudAccountState {
+  profile: Profile;
   connections: Connection[];
   selectedConnection: Connection | null;
   channels: Channel[];
@@ -172,7 +174,7 @@ function assertNoError(error: unknown): void {
   }
 }
 
-export async function loadCloudDashboard(userId: string): Promise<CloudDashboard> {
+export async function loadCloudDashboard(userId: string): Promise<CloudAccountState> {
   const client = requireSupabaseClient();
   const [profileResult, connectionsResult, channelsResult] = await Promise.all([
     client.from('profiles').select('*').eq('user_id', userId).single(),
@@ -206,7 +208,13 @@ export async function loadCloudDashboard(userId: string): Promise<CloudDashboard
     !selectedConnection ||
     selectedConnection.status === 'DELETION_PENDING'
   ) {
-    return { connections, selectedConnection, channels, dashboard: null };
+    return {
+      profile: profileResult.data,
+      connections,
+      selectedConnection,
+      channels,
+      dashboard: null,
+    };
   }
 
   const [snapshots, daily, summary, milestones, goals, manual] = await Promise.all([
@@ -242,6 +250,7 @@ export async function loadCloudDashboard(userId: string): Promise<CloudDashboard
   );
   const snapshotRows = snapshots.data ?? [];
   return {
+    profile: profileResult.data,
     connections,
     selectedConnection,
     channels,

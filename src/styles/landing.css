@@ -31,6 +31,12 @@
   gap: var(--space-4);
 }
 
+.landing-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .landing-brand,
 .sidebar-brand {
   display: inline-flex;
@@ -126,6 +132,47 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+.landing-connection-step {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.landing-account-context {
+  display: grid;
+  width: min(100%, 35rem);
+  gap: 0.25rem;
+  padding: var(--space-4);
+  border-left: 2px solid var(--tm-primary);
+  background: color-mix(in srgb, var(--tm-surface) 72%, transparent);
+}
+
+.landing-account-context span,
+.landing-connected-count {
+  color: var(--tm-text-muted);
+  font-size: 0.72rem;
+}
+
+.landing-account-context strong {
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+.landing-account-context p,
+.landing-connected-count {
+  margin: 0;
+}
+
+.landing-account-context p {
+  color: var(--tm-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.landing-connected-count strong {
+  color: var(--tm-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .landing-permission-note {
@@ -378,6 +425,10 @@
 }
 
 @media (max-width: 600px) {
+  .landing-header nav a:nth-child(3) {
+    display: none;
+  }
+
   .landing-header nav a:nth-child(2) {
     display: none;
   }

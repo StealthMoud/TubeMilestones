@@ -31,6 +31,7 @@ export type Database = {
       profiles: Table<
         {
           user_id: string;
+          display_name: string | null;
           theme: 'system' | 'dark' | 'light';
           selected_channel_id: string | null;
           created_at: string;
@@ -38,12 +39,14 @@ export type Database = {
         },
         {
           user_id: string;
+          display_name?: string | null;
           theme?: 'system' | 'dark' | 'light';
           selected_channel_id?: string | null;
           created_at?: string;
           updated_at?: string;
         },
         {
+          display_name?: string | null;
           theme?: 'system' | 'dark' | 'light';
           selected_channel_id?: string | null;
         }

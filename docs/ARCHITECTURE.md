@@ -43,6 +43,9 @@ Supabase Auth is the only account system. It owns password hashing, email confir
 recovery, and native identities; `auth.users.id` remains the canonical owner regardless
 of sign-in method. The frontend never merges users by email, and adding a password to an
 OAuth-created user updates that same Auth user without migrating application data.
+The optional `profiles.display_name` is an explicit, user-owned TubeMilestones identity.
+When it is absent, the UI derives a presentation-only name from Auth metadata, then the
+email local part, without persisting that fallback.
 
 The frontend uses the current publishable key. Postgres browser reads and the small set
 of user-authored writes are protected by RLS and column/table grants. Trusted derived
@@ -190,21 +193,21 @@ are unique within their exact connection or global scope.
 
 ## Data model
 
-| Table                    | Purpose                                              | Browser boundary                 |
-| ------------------------ | ---------------------------------------------------- | -------------------------------- |
-| `profiles`               | theme and selected channel                           | read own; update two own columns |
-| `youtube_connections`    | Google subject/email and independent grant lifecycle | read own                         |
-| `youtube_token_vault`    | one Vault secret reference per connection            | server only                      |
-| `channels`               | current channel identity, connection, and statistics | read own                         |
-| `channel_snapshots`      | observed historical state                            | read own                         |
-| `analytics_daily`        | hot daily Analytics                                  | read own                         |
-| `analytics_summary`      | reporting coverage and watch-time summary            | read own                         |
-| `milestone_states`       | derived standard/custom checkpoint state             | read own; RPC marks seen         |
-| `custom_goals`           | user-created goals                                   | own CRUD                         |
-| `manual_metrics`         | user-entered YPP guidance                            | own CRUD                         |
-| `archive_manifests`      | encrypted cold object metadata                       | read own                         |
-| `youtube_oauth_attempts` | state hash and PKCE verifier                         | server only                      |
-| `data_deletion_requests` | connection-scoped or global purge lifecycle          | server only                      |
+| Table                    | Purpose                                              | Browser boundary                   |
+| ------------------------ | ---------------------------------------------------- | ---------------------------------- |
+| `profiles`               | display name, theme, and selected channel            | read own; update three own columns |
+| `youtube_connections`    | Google subject/email and independent grant lifecycle | read own                           |
+| `youtube_token_vault`    | one Vault secret reference per connection            | server only                        |
+| `channels`               | current channel identity, connection, and statistics | read own                           |
+| `channel_snapshots`      | observed historical state                            | read own                           |
+| `analytics_daily`        | hot daily Analytics                                  | read own                           |
+| `analytics_summary`      | reporting coverage and watch-time summary            | read own                           |
+| `milestone_states`       | derived standard/custom checkpoint state             | read own; RPC marks seen           |
+| `custom_goals`           | user-created goals                                   | own CRUD                           |
+| `manual_metrics`         | user-entered YPP guidance                            | own CRUD                           |
+| `archive_manifests`      | encrypted cold object metadata                       | read own                           |
+| `youtube_oauth_attempts` | state hash and PKCE verifier                         | server only                        |
+| `data_deletion_requests` | connection-scoped or global purge lifecycle          | server only                        |
 
 ## Source layout
 

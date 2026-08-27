@@ -46,7 +46,7 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
       Edge Function
 - [x] Store the project URL, public publishable key, and dedicated automation secret in
       Cron Vault; install and exercise both jobs
-- [x] Add the three public GitHub repository variables and confirm Pages Actions source
+- [x] Add the four public GitHub repository variables and confirm Pages Actions source
 - [ ] Pass a live two-user RLS/server-only RPC isolation test
 - [ ] Pass real Google sign-in and YouTube OAuth/reconnect/callback tests
 - [ ] Pass a real initial and repeat YouTube sync

@@ -69,3 +69,11 @@ export function resolveApplicationBaseUrl(
 export function applicationBaseUrl(): string {
   return resolveApplicationBaseUrl(window.location.href, import.meta.env.BASE_URL);
 }
+
+export function youtubeOAuthTestingMode(): boolean {
+  return (
+    (import.meta.env.VITE_YOUTUBE_OAUTH_MODE as string | undefined)
+      ?.trim()
+      .toLowerCase() === 'testing'
+  );
+}

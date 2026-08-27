@@ -3,6 +3,11 @@ import type { User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { channelMetricValue } from '../domain/metrics/currentValue';
+import {
+  deriveDisplayName,
+  normalizeDisplayName,
+  profileInitials,
+} from '../domain/profile';
 import type {
   Channel,
   CustomGoal,
@@ -29,11 +34,14 @@ import {
   saveManualValues,
   selectChannel,
   synchronizeChannel,
+  updateProfile,
   updateTheme,
 } from '../services/supabase/actions';
 import {
   loadCloudDashboard,
+  type CloudAccountState,
   type Connection,
+  type Profile,
 } from '../services/supabase/dashboardRepository';
 import { useDocumentTheme } from './useDocumentTheme';
 import { ApplicationAuthError } from '../auth/authErrors';
@@ -89,7 +97,7 @@ const DEMO_USER = {
   id: '00000000-0000-4000-8000-000000000001',
   email: 'login@example.com',
   app_metadata: {},
-  user_metadata: {},
+  user_metadata: { full_name: 'Demo creator' },
   aud: 'authenticated',
   created_at: '2026-08-26T00:00:00.000Z',
 } as User;
@@ -135,6 +143,25 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
 
   const addAccountMutation = useMutation({ mutationFn: addYouTubeAccount });
   const reconnectMutation = useMutation({ mutationFn: reconnectYouTubeAccount });
+  const profileMutation = useMutation({
+    mutationFn: ({ userId, displayName }: { userId: string; displayName: string }) =>
+      updateProfile(userId, displayName),
+    onSuccess: async (displayName) => {
+      queryClient.setQueryData<CloudAccountState | undefined>(
+        ['cloud-dashboard', auth.user?.id],
+        (current) =>
+          current
+            ? {
+                ...current,
+                profile: { ...current.profile, display_name: displayName },
+              }
+            : current,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ['cloud-dashboard', auth.user?.id],
+      });
+    },
+  });
   const syncMutation = useMutation({
     mutationFn: synchronizeChannel,
     onSuccess: invalidate,
@@ -161,6 +188,24 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
   });
 
   const data = demo.data ?? cloud.data?.dashboard ?? null;
+  const authUser =
+    demo.isDemo && demo.scenario !== 'auth' && demo.scenario !== 'password-recovery'
+      ? DEMO_USER
+      : auth.user;
+  const fixtureProfile: Profile | null =
+    demo.isDemo && authUser
+      ? {
+          user_id: authUser.id,
+          display_name: demo.profileDisplayName,
+          theme: demo.theme,
+          selected_channel_id: data?.channel.channelId ?? null,
+          created_at: authUser.created_at,
+          updated_at: authUser.updated_at ?? authUser.created_at,
+        }
+      : null;
+  const profile = fixtureProfile ?? cloud.data?.profile ?? null;
+  const displayName = deriveDisplayName(profile, authUser);
+  const initials = profileInitials(displayName, authUser?.email);
   const fixtureConnection = demo.data
     ? demoConnection(demo.data, demo.scenario === 'reauth')
     : null;
@@ -205,7 +250,7 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
           : connectionStatus(selectedConnection, Boolean(data));
   const isInitializing =
     !demo.isDemo && (auth.isLoading || (Boolean(auth.user) && cloud.isLoading));
-  const theme = data?.metadata.themePreference ?? 'system';
+  const theme = profile?.theme ?? 'system';
   useDocumentTheme(theme);
 
   useEffect(() => {
@@ -244,6 +289,7 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     syncMutation.error ??
     channelMutation.error ??
     disconnectMutation.error ??
+    profileMutation.error ??
     deleteAccountMutation.error;
   const error =
     demo.scenario === 'api-error'
@@ -282,6 +328,9 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     status,
     syncStage: status === 'SYNCING' ? ('CONNECTING' as SyncStage) : null,
     data,
+    profile,
+    displayName,
+    profileInitials: initials,
     connections,
     selectedConnection,
     channels,
@@ -291,7 +340,7 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     isInitializing,
     isDemo: demo.isDemo,
     oauthConfigured: demo.isDemo || auth.configured,
-    authUser: demo.scenario === 'unconnected' ? DEMO_USER : auth.user,
+    authUser,
     authMethods:
       demo.scenario === 'password-recovery'
         ? { google: false, password: true }
@@ -326,6 +375,20 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
       else auth.completePasswordRecovery();
     },
     signOut: auth.signOut,
+    updateProfile: async (nextDisplayName: string) => {
+      if (!authUser) {
+        throw new TubeMilestonesError('AUTH_REQUIRED', 'Sign in first.');
+      }
+      if (demo.isDemo) {
+        const normalized = normalizeDisplayName(nextDisplayName);
+        demo.setProfileDisplayName(normalized);
+        return normalized;
+      }
+      return profileMutation.mutateAsync({
+        userId: authUser.id,
+        displayName: nextDisplayName,
+      });
+    },
     addYouTubeAccount: async () => {
       if (!demo.isDemo) await addAccountMutation.mutateAsync();
     },
@@ -343,11 +406,14 @@ export function useTubeMilestones(options: { backgroundSync?: boolean } = {}) {
     },
     deleteAccount: async () => deleteAccountMutation.mutateAsync(),
     setTheme: async (nextTheme: ThemePreference) => {
-      if (demo.data) {
-        demo.setData({
-          ...demo.data,
-          metadata: { ...demo.data.metadata, themePreference: nextTheme },
-        });
+      if (demo.isDemo) {
+        demo.setTheme(nextTheme);
+        if (demo.data) {
+          demo.setData({
+            ...demo.data,
+            metadata: { ...demo.data.metadata, themePreference: nextTheme },
+          });
+        }
       } else if (auth.user) {
         await updateTheme(auth.user.id, nextTheme);
         await invalidate();

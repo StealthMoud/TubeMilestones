@@ -77,6 +77,17 @@ test('desktop Home and Journey use the sidebar composition without overflow', as
   await page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel').click();
   await expect(page.getByText(/youtube-owner@example\.com/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add YouTube account' })).toBeVisible();
+  await page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel').click();
+
+  await page.getByLabel('TubeMilestones profile: Demo creator').click();
+  const profileMenu = page.locator('.profile-menu__panel');
+  await expect(profileMenu.getByText('Demo creator', { exact: true })).toBeVisible();
+  await expect(
+    profileMenu.getByRole('link', { name: 'Profile & settings' }),
+  ).toBeVisible();
+  await expect(
+    profileMenu.getByRole('button', { name: 'Add YouTube account' }),
+  ).toBeVisible();
 
   await page.getByRole('link', { name: 'Journey', exact: true }).click();
 

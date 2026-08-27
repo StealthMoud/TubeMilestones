@@ -87,6 +87,20 @@
   padding-block: var(--space-4);
 }
 
+.settings-connection__channels > p {
+  margin: 0;
+  color: var(--tm-text-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-connection__channels > small {
+  color: var(--tm-text-muted);
+  font-size: 0.72rem;
+}
+
 .settings-connection__channels > div {
   display: flex;
   min-width: 0;
@@ -195,6 +209,123 @@
   flex: 0 0 auto;
   padding: 0.6rem 0.8rem;
   font-size: 0.76rem;
+}
+
+.settings-profile__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 96px;
+  padding: var(--space-4);
+}
+
+.settings-profile__summary .button {
+  min-height: 42px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.76rem;
+}
+
+.profile-edit-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-top: 1px solid var(--tm-border);
+  background: var(--tm-bg-subtle);
+}
+
+.profile-edit-form > .form-error,
+.profile-edit-form__actions {
+  grid-column: 1 / -1;
+}
+
+.profile-edit-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.settings-inline-success {
+  padding: 0 var(--space-4) var(--space-4);
+  margin: 0;
+  color: var(--tm-success);
+  font-size: 0.75rem;
+}
+
+.settings-empty-connection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+}
+
+.settings-empty-connection > div {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.settings-empty-connection strong {
+  font-size: 0.87rem;
+}
+
+.settings-empty-connection p {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--tm-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.settings-empty-connection .button {
+  min-height: 44px;
+}
+
+.settings-row--danger .settings-row__copy span {
+  max-width: 39rem;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.55;
+}
+
+.settings-group--danger .settings-list {
+  border-color: color-mix(in srgb, var(--tm-danger) 34%, var(--tm-border));
+}
+
+.account-delete-confirmation {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.account-delete-confirmation p,
+.account-delete-confirmation ul {
+  margin: 0;
+}
+
+.account-delete-confirmation > p:first-child {
+  color: var(--tm-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 680;
+}
+
+.account-delete-confirmation ul {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 1.2rem;
+  color: var(--tm-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.account-delete-confirmation__youtube-note {
+  padding: var(--space-3);
+  border-left: 2px solid var(--tm-success);
+  color: var(--tm-text-secondary);
+  background: var(--tm-success-soft);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .sign-in-methods {
@@ -449,6 +580,15 @@
   .password-settings-form {
     grid-template-columns: 1fr;
   }
+
+  .profile-edit-form,
+  .settings-empty-connection {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-empty-connection .button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 420px) {
@@ -469,5 +609,32 @@
   .sign-in-methods__actions .button {
     width: 100%;
     max-width: none;
+  }
+
+  .settings-profile__summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .settings-profile__summary .button {
+    width: 100%;
+    max-width: none;
+    grid-column: 1 / -1;
+  }
+
+  .settings-connection__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .settings-connection__actions .button,
+  .settings-row--add-account .button,
+  .settings-row--danger .button {
+    width: 100%;
+    max-width: none;
+  }
+
+  .settings-row--add-account,
+  .settings-row--danger {
+    display: grid;
   }
 }

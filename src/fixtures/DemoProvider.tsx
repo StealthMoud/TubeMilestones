@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { DashboardData } from '../domain/models';
+import type { DashboardData, ThemePreference } from '../domain/models';
 import {
   createDemoDashboard,
   demoFixtureFromLocation,
@@ -20,7 +20,11 @@ interface DemoContextValue {
   data: DashboardData | null;
   scenario: DemoScenarioName | null;
   isDemo: boolean;
+  profileDisplayName: string | null;
+  theme: ThemePreference;
   setData(data: DashboardData | null): void;
+  setProfileDisplayName(displayName: string): void;
+  setTheme(theme: ThemePreference): void;
   startDemo(name?: DemoFixtureName): void;
   exitDemo(): void;
 }
@@ -52,15 +56,23 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [initial] = useState(initialDemo);
   const [data, setData] = useState<DashboardData | null>(initial.data);
   const [scenario, setScenario] = useState<DemoScenarioName | null>(initial.scenario);
+  const [profileDisplayName, setProfileDisplayName] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemePreference>(
+    initial.data?.metadata.themePreference ?? 'system',
+  );
   const startDemo = useCallback((name: DemoFixtureName = 'small') => {
     if (isDemoModeAllowed()) {
       setScenario(null);
-      setData(createDemoDashboard(name));
+      const next = createDemoDashboard(name);
+      setData(next);
+      setTheme(next.metadata.themePreference);
     }
   }, []);
   const exitDemo = useCallback(() => {
     setData(null);
     setScenario(null);
+    setProfileDisplayName(null);
+    setTheme('system');
     window.location.hash = '#/';
   }, []);
   const value = useMemo(
@@ -68,11 +80,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       data,
       scenario,
       isDemo: data !== null || scenario !== null,
+      profileDisplayName,
+      theme,
       setData,
+      setProfileDisplayName,
+      setTheme,
       startDemo,
       exitDemo,
     }),
-    [data, exitDemo, scenario, startDemo],
+    [data, exitDemo, profileDisplayName, scenario, startDemo, theme],
   );
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
 }

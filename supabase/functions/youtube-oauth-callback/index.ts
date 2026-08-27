@@ -10,7 +10,11 @@ import {
 } from '../_shared/google.ts';
 import { logEvent } from '../_shared/logging.ts';
 import { processYouTubeOAuthAuthorization } from '../_shared/oauth-callback.ts';
-import { parseOAuthCallback } from '../_shared/oauth.ts';
+import {
+  oauthAttemptStateError,
+  parseOAuthCallback,
+  type OAuthIntent,
+} from '../_shared/oauth.ts';
 import { fetchOwnedChannels, type ObservedChannel } from '../_shared/youtube.ts';
 
 const completionSchema = z.discriminatedUnion('outcome', [
@@ -27,10 +31,20 @@ const completionSchema = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('FORBIDDEN') }),
 ]);
 
-function redirect(result: 'success' | 'error', code?: string): Response {
+function redirect(
+  result: 'success' | 'error',
+  code?: string,
+  retry?: { intent: OAuthIntent; connectionId: string | null },
+): Response {
   const url = frontendUrl();
   const query = new URLSearchParams({ result });
   if (code) query.set('code', code);
+  if (retry) {
+    query.set('intent', retry.intent);
+    if (retry.intent === 'RECONNECT' && retry.connectionId) {
+      query.set('connectionId', retry.connectionId);
+    }
+  }
   url.hash = `/oauth/youtube?${query.toString()}`;
   const response = Response.redirect(url.toString(), 303);
   const headers = new Headers(response.headers);
@@ -60,6 +74,7 @@ Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const startedAt = performance.now();
   let connectionId: string | undefined;
+  let retry: { intent: OAuthIntent; connectionId: string | null } | undefined;
   try {
     if (request.method !== 'GET') throw new AppError('INVALID_REQUEST');
     const callback = parseOAuthCallback(new URL(request.url));
@@ -67,12 +82,37 @@ Deno.serve(async (request) => {
 
     const admin = adminClient();
     const stateHash = await sha256Hex(callback.state);
+    const storedAttempt = await admin
+      .from('youtube_oauth_attempts')
+      .select('intent, target_connection_id, expires_at, used_at')
+      .eq('state_hash', stateHash)
+      .maybeSingle();
+    if (storedAttempt.error) {
+      throw new AppError('SUPABASE_ERROR', { cause: storedAttempt.error });
+    }
+    if (storedAttempt.data) {
+      retry = {
+        intent: storedAttempt.data.intent,
+        connectionId: storedAttempt.data.target_connection_id,
+      };
+    }
+    const stateError = oauthAttemptStateError(
+      storedAttempt.data
+        ? {
+            intent: storedAttempt.data.intent,
+            targetConnectionId: storedAttempt.data.target_connection_id,
+            expiresAt: storedAttempt.data.expires_at,
+            usedAt: storedAttempt.data.used_at,
+          }
+        : null,
+    );
+    if (stateError) throw new AppError(stateError);
     const consumed = await admin.rpc('consume_youtube_oauth_attempt', {
       p_state_hash: stateHash,
     });
     if (consumed.error) throw new AppError('SUPABASE_ERROR', { cause: consumed.error });
     const attempt = Array.isArray(consumed.data) ? consumed.data[0] : undefined;
-    if (!attempt) throw new AppError('OAUTH_STATE_INVALID');
+    if (!attempt) throw new AppError('OAUTH_STATE_USED');
     if (callback.kind === 'denied') throw new AppError('OAUTH_DENIED');
 
     const completion = await processYouTubeOAuthAuthorization(
@@ -174,6 +214,6 @@ Deno.serve(async (request) => {
       connectionId,
       errorCode: typed.code,
     });
-    return redirect('error', typed.code);
+    return redirect('error', typed.code, retry);
   }
 });

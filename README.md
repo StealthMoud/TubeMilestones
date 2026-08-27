@@ -99,11 +99,14 @@ Frontend variables:
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
 VITE_PRIVACY_CONTACT_EMAIL=privacy@YOUR_OWNED_DOMAIN
+VITE_YOUTUBE_OAUTH_MODE=testing
 VITE_ENABLE_DEMO=false
 ```
 
-Only the URL, publishable key, and intentionally public support address belong in a
-production frontend. Real Google, R2, archive, automation, and elevated Supabase
+Only the URL, publishable key, intentionally public support address, and non-secret
+OAuth presentation mode belong in a production frontend. Set the mode to `testing`
+while Google limits authorization to approved test users; it changes explanatory copy,
+not OAuth behavior. Real Google, R2, archive, automation, and elevated Supabase
 credentials are Supabase Edge Function secrets. See
 [Supabase setup](docs/SUPABASE_SETUP.md), [Google setup](docs/GOOGLE_OAUTH_SETUP.md),
 and [R2 setup](docs/R2_SETUP.md).
@@ -136,9 +139,10 @@ npm run format:check    # Prettier verification
 ## Deployment and operations
 
 The Pages workflow builds `main` with only `VITE_SUPABASE_URL`,
-`VITE_SUPABASE_PUBLISHABLE_KEY`, and the public `VITE_PRIVACY_CONTACT_EMAIL`, uploads
-`dist`, and deploys through the `github-pages` environment. Backend deployment and
-provider configuration are deliberate owner actions, documented in
+`VITE_SUPABASE_PUBLISHABLE_KEY`, the public `VITE_PRIVACY_CONTACT_EMAIL`, and
+`VITE_YOUTUBE_OAUTH_MODE`, uploads `dist`, and deploys through the `github-pages`
+environment. Backend deployment and provider configuration are deliberate owner
+actions, documented in
 [Deployment](docs/DEPLOYMENT.md) and [Production readiness](docs/PRODUCTION_READINESS.md).
 
 TubeMilestones is independent and is not affiliated with or endorsed by YouTube or

@@ -40,7 +40,7 @@ export function ChannelSwitcher({
       </summary>
       <div className="channel-switcher__menu">
         <div className="channel-switcher__heading">
-          <strong>Channels</strong>
+          <strong>Switch channel</strong>
           <span>{channels.length} available</span>
         </div>
         <div className="channel-switcher__list">
@@ -67,11 +67,13 @@ export function ChannelSwitcher({
                 <span>
                   <strong>{channel.title}</strong>
                   <small>
+                    {connection?.google_email
+                      ? `via ${connection.google_email}`
+                      : 'via connected Google account'}
+                    {' · '}
                     {channel.subscriberCount === null
                       ? 'Subscribers hidden'
                       : `${formatCompactNumber(channel.subscriberCount)} subscribers`}
-                    {' · '}
-                    {connection?.google_email ?? 'Connected Google account'}
                   </small>
                 </span>
                 {selectedChannel ? <Check size={17} aria-hidden="true" /> : null}

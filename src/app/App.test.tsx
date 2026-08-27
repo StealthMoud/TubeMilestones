@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { User } from '@supabase/supabase-js';
 import { MemoryRouter } from 'react-router-dom';
@@ -30,10 +30,19 @@ const USER = {
   id: '86d4f90b-5aa1-43b0-9625-6fe933b730af',
   email: 'creator@example.com',
   app_metadata: {},
-  user_metadata: {},
+  user_metadata: { full_name: 'Creator Profile' },
   aud: 'authenticated',
   created_at: '2026-08-26T00:00:00.000Z',
 } as User;
+
+const PROFILE = {
+  user_id: USER.id,
+  display_name: null,
+  theme: 'system' as const,
+  selected_channel_id: null,
+  created_at: '2026-08-26T00:00:00.000Z',
+  updated_at: '2026-08-26T00:00:00.000Z',
+};
 
 function connection(
   id: string,
@@ -71,6 +80,9 @@ function appState(overrides: Partial<AppState> = {}): AppState {
     status: 'READY',
     syncStage: null,
     data,
+    profile: PROFILE,
+    displayName: 'Creator Profile',
+    profileInitials: 'CP',
     connections: [selectedConnection],
     selectedConnection,
     channels: [data.channel],
@@ -94,6 +106,7 @@ function appState(overrides: Partial<AppState> = {}): AppState {
     updatePassword: vi.fn().mockResolvedValue(USER),
     completePasswordRecovery: vi.fn(),
     signOut: vi.fn().mockResolvedValue(undefined),
+    updateProfile: vi.fn().mockResolvedValue('Creator Profile'),
     addYouTubeAccount: vi.fn().mockResolvedValue(undefined),
     reconnectYouTubeAccount: vi.fn().mockResolvedValue(undefined),
     refresh: vi.fn().mockResolvedValue(undefined),
@@ -221,9 +234,9 @@ describe('TubeMilestones cloud application states', () => {
     );
     show('/');
     expect(
-      screen.getByRole('heading', { name: 'Connect your YouTube account.' }),
+      screen.getByRole('heading', { name: 'Connect a YouTube account.' }),
     ).toBeVisible();
-    expect(screen.getByText(/can be different from the account/)).toBeVisible();
+    expect(screen.getByText(/can be a different Google account/)).toBeVisible();
     await userEvent.click(
       screen.getByRole('button', { name: 'Connect YouTube account' }),
     );
@@ -237,7 +250,8 @@ describe('TubeMilestones cloud application states', () => {
     );
   });
 
-  it('keeps sign-in methods available before the first YouTube connection', async () => {
+  it('keeps every account-level setting available before the first YouTube connection', async () => {
+    const addYouTubeAccount = vi.fn().mockResolvedValue(undefined);
     hookMocks.useTubeMilestones.mockReturnValue(
       appState({
         status: 'CONNECT_YOUTUBE',
@@ -245,14 +259,102 @@ describe('TubeMilestones cloud application states', () => {
         isDemo: false,
         authUser: USER,
         authMethods: { google: true, password: false },
+        connections: [],
+        selectedConnection: null,
+        channels: [],
+        addYouTubeAccount,
       }),
     );
     show('/settings');
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeVisible();
-    expect(screen.getByText(USER.email!)).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'TubeMilestones profile' }),
+    ).toBeVisible();
+    expect(screen.getAllByText(USER.email!).length).toBeGreaterThan(0);
     expect(screen.getByText('Google').closest('div')).toHaveTextContent('Connected');
     expect(screen.getByRole('button', { name: 'Add password' })).toBeVisible();
-    expect(screen.queryByText('Connected YouTube accounts')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Connected YouTube accounts' }),
+    ).toBeVisible();
+    expect(screen.getByText('No YouTube accounts connected yet.')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Add YouTube account' }));
+    expect(addYouTubeAccount).toHaveBeenCalledOnce();
+    expect(screen.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Data & privacy' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Danger zone' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Delete account' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'About' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'YouTube data' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'YPP guidance' })).toBeNull();
+  });
+
+  it('edits the profile inline without requiring dashboard data', async () => {
+    const updateProfile = vi.fn().mockResolvedValue('Mahmoud');
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        status: 'CONNECT_YOUTUBE',
+        data: null,
+        isDemo: false,
+        authUser: USER,
+        connections: [],
+        selectedConnection: null,
+        channels: [],
+        profile: { ...PROFILE, display_name: null },
+        displayName: 'Creator Profile',
+        updateProfile,
+      }),
+    );
+    show('/settings');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit profile' }));
+    const input = screen.getByLabelText('Display name');
+    await userEvent.clear(input);
+    await userEvent.type(input, '  Mahmoud  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(updateProfile).toHaveBeenCalledWith('  Mahmoud  ');
+    expect(await screen.findByRole('status')).toHaveTextContent('Profile updated.');
+  });
+
+  it('requires typed confirmation before deleting a zero-connection account', async () => {
+    const deleteAccount = vi.fn().mockResolvedValue({
+      deletionId: '62cc4d74-ff7d-4736-b27e-3a5997fb3d3f',
+      status: 'COMPLETE' as const,
+    });
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        status: 'CONNECT_YOUTUBE',
+        data: null,
+        isDemo: false,
+        authUser: USER,
+        connections: [],
+        selectedConnection: null,
+        channels: [],
+        deleteAccount,
+      }),
+    );
+    show('/settings');
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Delete account' }),
+    );
+    const dialog = screen.getByRole('dialog', {
+      name: 'Delete TubeMilestones account?',
+    });
+    expect(dialog).toHaveTextContent(
+      'It does not delete anything from YouTube itself.',
+    );
+    const finalDelete = screen.getByRole('button', {
+      name: 'Permanently delete account',
+    });
+    expect(finalDelete).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Type DELETE to confirm/u), {
+      target: { value: 'DELETE' },
+    });
+    const enabledDelete = screen.getByRole('button', {
+      name: 'Permanently delete account',
+    });
+    expect(enabledDelete).toBeEnabled();
+    await userEvent.click(enabledDelete);
+    expect(deleteAccount).toHaveBeenCalledOnce();
   });
 
   it('uses staged initial-sync feedback without blocking on an empty shell', () => {
@@ -285,15 +387,23 @@ describe('TubeMilestones cloud application states', () => {
       'account-b@example.com',
       'REAUTH_REQUIRED',
     );
+    const connectionC = connection(
+      '71000000-0000-4000-8000-000000000003',
+      'account-c@example.com',
+    );
     data.channel = { ...data.channel, connectionId: connectionA.id };
     const channelB = { ...other, connectionId: connectionB.id };
+    const channelC = {
+      ...createDemoDashboard('large').channel,
+      connectionId: connectionC.id,
+    };
     const chooseChannel = vi.fn().mockResolvedValue(undefined);
     hookMocks.useTubeMilestones.mockReturnValue(
       appState({
         data,
-        connections: [connectionA, connectionB],
+        connections: [connectionA, connectionB, connectionC],
         selectedConnection: connectionA,
-        channels: [data.channel, channelB],
+        channels: [data.channel, channelB, channelC],
         chooseChannel,
       }),
     );
@@ -307,8 +417,9 @@ describe('TubeMilestones cloud application states', () => {
     switcher.closest('details')?.setAttribute('open', '');
     expect(screen.getByText(/account-a@example\.com/u)).toBeVisible();
     expect(screen.getByText(/account-b@example\.com/u)).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: /Fieldcraft Cinema/u }));
-    expect(chooseChannel).toHaveBeenCalledWith(channelB.channelId);
+    expect(screen.getByText(/account-c@example\.com/u)).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: /Atlas Cut/u }));
+    expect(chooseChannel).toHaveBeenCalledWith(channelC.channelId);
   });
 
   it('renders the differentiated Journey path and changes milestone metrics', async () => {
@@ -368,6 +479,25 @@ describe('TubeMilestones cloud application states', () => {
     ).toHaveTextContent('Other connected accounts stay available.');
   });
 
+  it('starts a fresh add flow for each first, second, and third account action', async () => {
+    const addYouTubeAccount = vi.fn().mockResolvedValue(undefined);
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        isDemo: false,
+        authUser: USER,
+        addYouTubeAccount,
+      }),
+    );
+    show('/settings');
+    const addAnother = await screen.findByRole('button', {
+      name: 'Add another YouTube account',
+    });
+    await userEvent.click(addAnother);
+    await userEvent.click(addAnother);
+    await userEvent.click(addAnother);
+    expect(addYouTubeAccount).toHaveBeenCalledTimes(3);
+  });
+
   it('separates login identity from YouTube accounts and scopes account actions', async () => {
     const data = createDemoDashboard('small');
     const connectionA = connection(
@@ -401,12 +531,12 @@ describe('TubeMilestones cloud application states', () => {
     );
 
     show('/settings');
-    expect(await screen.findByText(USER.email!)).toBeVisible();
+    expect((await screen.findAllByText(USER.email!)).length).toBeGreaterThan(0);
     expect(screen.getByText('Used only to sign into TubeMilestones.')).toBeVisible();
     expect(screen.getByText('youtube-a@example.com')).toBeVisible();
     expect(screen.getByText('youtube-b@example.com')).toBeVisible();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Sign out' }).at(-1)!);
     expect(signOut).toHaveBeenCalledOnce();
     expect(disconnectYouTubeAccount).not.toHaveBeenCalled();
 
@@ -417,7 +547,7 @@ describe('TubeMilestones cloud application states', () => {
       screen.getByRole('dialog', { name: 'Disconnect this YouTube account?' }),
     ).toHaveTextContent('youtube-b@example.com');
     await userEvent.click(
-      screen.getByRole('button', { name: 'Disconnect and delete data' }),
+      screen.getByRole('button', { name: 'Disconnect YouTube account' }),
     );
     expect(disconnectYouTubeAccount).toHaveBeenCalledWith(connectionB.id);
   });
@@ -500,7 +630,7 @@ describe('TubeMilestones cloud application states', () => {
     );
     const view = show('/oauth/youtube?result=success');
     expect(
-      await screen.findByRole('heading', { name: 'Connect your YouTube account.' }),
+      await screen.findByRole('heading', { name: 'Connect a YouTube account.' }),
     ).toBeVisible();
     view.unmount();
 
@@ -513,6 +643,46 @@ describe('TubeMilestones cloud application states', () => {
         name: 'Your saved YouTube data is being removed.',
       }),
     ).toBeVisible();
+  });
+
+  it('starts a new add attempt from an expired OAuth result', async () => {
+    const addYouTubeAccount = vi.fn().mockResolvedValue(undefined);
+    hookMocks.useTubeMilestones.mockReturnValue(
+      appState({
+        status: 'CONNECT_YOUTUBE',
+        data: null,
+        isDemo: false,
+        authUser: USER,
+        connections: [],
+        selectedConnection: null,
+        channels: [],
+        addYouTubeAccount,
+      }),
+    );
+    show('/oauth/youtube?result=error&code=OAUTH_STATE_USED&intent=ADD');
+    expect(
+      screen.getByRole('heading', { name: 'YouTube connection expired' }),
+    ).toBeVisible();
+    expect(
+      screen.getByText('This connection attempt can no longer be used.'),
+    ).toBeVisible();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Start a new connection' }),
+    );
+    expect(addYouTubeAccount).toHaveBeenCalledOnce();
+  });
+
+  it('starts a new connection-scoped reconnect attempt from an OAuth failure', async () => {
+    const connectionId = '71000000-0000-4000-8000-000000000001';
+    const reconnectYouTubeAccount = vi.fn().mockResolvedValue(undefined);
+    hookMocks.useTubeMilestones.mockReturnValue(appState({ reconnectYouTubeAccount }));
+    show(
+      `/oauth/youtube?result=error&code=YOUTUBE_ACCOUNT_MISMATCH&intent=RECONNECT&connectionId=${connectionId}`,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Try reconnecting again' }),
+    );
+    expect(reconnectYouTubeAccount).toHaveBeenCalledWith(connectionId);
   });
 
   it('keeps safe partial data visible alongside typed API warnings', () => {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { MetricType, ThemePreference } from '../../domain/models';
 import { TubeMilestonesError } from '../errors';
+import { normalizeDisplayName } from '../../domain/profile';
 import { requireSupabaseClient } from './client';
 import { invokeFunction } from './invoke';
 
@@ -92,6 +93,32 @@ export async function updateTheme(
     throw new TubeMilestonesError('SUPABASE_ERROR', 'Theme could not be saved.', {
       cause: error,
     });
+}
+
+export async function updateProfile(
+  userId: string,
+  displayName: string,
+): Promise<string> {
+  let normalized: string;
+  try {
+    normalized = normalizeDisplayName(displayName);
+  } catch (error) {
+    throw new TubeMilestonesError('INVALID_REQUEST', (error as Error).message, {
+      cause: error,
+    });
+  }
+  const { data, error } = await requireSupabaseClient()
+    .from('profiles')
+    .update({ display_name: normalized })
+    .eq('user_id', userId)
+    .select('display_name')
+    .single();
+  if (error || !data?.display_name) {
+    throw new TubeMilestonesError('SUPABASE_ERROR', 'Profile could not be saved.', {
+      cause: error,
+    });
+  }
+  return data.display_name;
 }
 
 export async function selectChannel(userId: string, channelId: string): Promise<void> {

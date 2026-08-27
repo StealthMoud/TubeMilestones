@@ -136,14 +136,156 @@ test('signed-in unconnected fixture shows the separate YouTube authorization ste
 }) => {
   await page.goto('/#/?demo=unconnected');
   await expect(
-    page.getByRole('heading', { name: 'Connect your YouTube account.' }),
+    page.getByRole('heading', { name: 'Connect a YouTube account.' }),
   ).toBeVisible();
+  await expect(page.getByText('TubeMilestones login')).toBeVisible();
+  await expect(
+    page.locator('.landing-account-context').getByText('login@example.com'),
+  ).toBeVisible();
+  await expect(page.locator('.landing-connected-count')).toContainText(
+    'Already connected accounts: 0',
+  );
   await expect(
     page.getByRole('button', { name: 'Connect YouTube account' }),
   ).toBeEnabled();
-  await expect(page.getByText(/can be different from the account/)).toBeVisible();
+  await expect(
+    page.getByText('Your YouTube account can be a different Google account.'),
+  ).toBeVisible();
   await expect(
     page.getByText(/cannot edit, upload, or delete YouTube content/),
+  ).toBeVisible();
+
+  await page.getByLabel('TubeMilestones profile: Demo creator').click();
+  const profileMenu = page.locator('.profile-menu__panel');
+  await expect(profileMenu.getByText('Demo creator', { exact: true })).toBeVisible();
+  await expect(
+    profileMenu.getByText('login@example.com', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    profileMenu.getByRole('link', { name: 'Profile & settings' }),
+  ).toBeVisible();
+  await expect(
+    profileMenu.getByRole('button', { name: 'Add YouTube account' }),
+  ).toBeVisible();
+  await expect(profileMenu.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('zero-channel settings keep the complete account surface usable', async ({
+  page,
+}) => {
+  await page.goto('/#/settings?demo=unconnected');
+
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  for (const heading of [
+    'TubeMilestones profile',
+    'TubeMilestones account',
+    'Connected YouTube accounts',
+    'Appearance',
+    'Data & privacy',
+    'Danger zone',
+    'About',
+  ]) {
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+  }
+  await expect(page.getByText('login@example.com').first()).toBeVisible();
+  await expect(page.getByText('Sign-in methods')).toBeVisible();
+  await expect(page.getByText('Google', { exact: true })).toBeVisible();
+  await expect(page.getByText('Email & password')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /^(Add|Change) password$/u }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(
+    page
+      .locator('.settings-empty-connection')
+      .getByText('No YouTube accounts connected yet.'),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('.settings-empty-connection')
+      .getByRole('button', { name: 'Add YouTube account' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete account' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'YouTube data' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'YPP guidance' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Edit profile' }).click();
+  const email = page.getByLabel('Email');
+  await expect(email).toHaveValue('login@example.com');
+  await expect(email).toHaveAttribute('readonly', '');
+  await page.getByLabel('Display name').fill('Mobile Creator');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByRole('status')).toHaveText('Profile updated.');
+  await expect(page.getByText('Mobile Creator', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Delete account' }).click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Delete TubeMilestones account?',
+  });
+  await expect(dialog).toContainText(
+    'It does not delete anything from YouTube itself.',
+  );
+  const permanentDelete = dialog.getByRole('button', {
+    name: 'Permanently delete account',
+  });
+  await expect(permanentDelete).toBeDisabled();
+  await dialog.getByLabel(/Type DELETE to confirm/).fill('DELETE');
+  await expect(permanentDelete).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('profile, settings, and destructive confirmation fit common mobile widths', async ({
+  page,
+}) => {
+  for (const width of [360, 375, 390, 412, 430]) {
+    await page.setViewportSize({ width, height: 932 });
+    await page.goto('/#/?demo=unconnected');
+    await page.getByLabel('TubeMilestones profile: Demo creator').click();
+    await expect(page.locator('.profile-menu__panel')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page.goto('/#/settings?demo=unconnected');
+    await expect(
+      page.getByRole('heading', { name: 'Connected YouTube accounts' }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page.getByRole('button', { name: 'Delete account' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Delete TubeMilestones account?' }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
+test('OAuth denial and consumed-state pages offer safe fresh retries', async ({
+  page,
+}) => {
+  await page.goto(
+    '/#/oauth/youtube?result=error&code=OAUTH_DENIED&intent=ADD&demo=unconnected',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'YouTube is not connected.' }),
+  ).toBeVisible();
+  await expect(page.getByText(/approved TubeMilestones test user/)).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Start a new connection' }),
+  ).toBeVisible();
+
+  await page.goto(
+    '/#/oauth/youtube?result=error&code=OAUTH_STATE_USED&intent=ADD&demo=unconnected',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'YouTube connection expired' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('This connection attempt can no longer be used.'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Start a new connection' }),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

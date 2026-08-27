@@ -75,15 +75,18 @@ warning.
 
 ### Settings
 
-The header switcher lists all channels across every connected YouTube account and never
-uses the TubeMilestones login email as channel identity. Settings separates the
-TubeMilestones login from connected YouTube accounts, groups channels by connection, and
-shows its native Google and email/password sign-in methods. A signed-in Google user can
-add a password to the same Supabase user; enabled users can change it. Settings also
-offers per-account YouTube add, reconnect, and disconnect controls. Disconnect explains
-that only that connection's saved data and Google access are removed and nothing is
-deleted from YouTube. Account deletion removes all connections and exposes pending or
-retryable lifecycle state rather than pretending an incomplete purge succeeded.
+The header keeps a TubeMilestones profile menu separate from the channel switcher. The
+switcher lists all channels across every connected YouTube account, identifies each by
+its authorizing Google email, and never uses the TubeMilestones login email as channel
+identity. Settings is available even with zero connected channels. It provides explicit
+profile-name editing, a read-only login email, native Google and email/password sign-in
+methods, appearance, privacy, sign-out, and account deletion. A signed-in Google user can
+add a password to the same Supabase user; enabled users can change it. Connected YouTube
+accounts are grouped independently with add, reconnect, and disconnect controls.
+Disconnect explains that only that connection's saved data and Google access are removed
+and nothing is deleted from YouTube. Account deletion requires typing `DELETE`, removes
+all app connections, and exposes pending or retryable lifecycle state rather than
+pretending an incomplete purge succeeded.
 
 ## Data freshness
 

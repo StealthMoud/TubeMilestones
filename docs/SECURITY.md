@@ -40,21 +40,21 @@ Every application table has RLS enabled. `anon` receives no table privileges. â€
 below means rows whose `user_id = auth.uid()` and, for child writes, a channel owned by
 that same user. Elevated server access uses a secret/service-role client.
 
-| Table                    | anon | own user                                    | other user | server             |
-| ------------------------ | ---- | ------------------------------------------- | ---------- | ------------------ |
-| `profiles`               | none | read; update `theme`, `selected_channel_id` | none       | read/write         |
-| `youtube_connections`    | none | read                                        | none       | read/write         |
-| `youtube_token_vault`    | none | none                                        | none       | read/write helpers |
-| `channels`               | none | read                                        | none       | read/write         |
-| `channel_snapshots`      | none | read                                        | none       | read/write         |
-| `analytics_daily`        | none | read                                        | none       | read/write         |
-| `analytics_summary`      | none | read                                        | none       | read/write         |
-| `milestone_states`       | none | read; mark own celebration seen through RPC | none       | read/write         |
-| `custom_goals`           | none | create/read/update/delete                   | none       | read/write         |
-| `manual_metrics`         | none | create/read/update/delete                   | none       | read/write         |
-| `archive_manifests`      | none | read metadata                               | none       | read/write         |
-| `youtube_oauth_attempts` | none | none                                        | none       | read/write         |
-| `data_deletion_requests` | none | none                                        | none       | read/write         |
+| Table                    | anon | own user                                                    | other user | server             |
+| ------------------------ | ---- | ----------------------------------------------------------- | ---------- | ------------------ |
+| `profiles`               | none | read; update `display_name`, `theme`, `selected_channel_id` | none       | read/write         |
+| `youtube_connections`    | none | read                                                        | none       | read/write         |
+| `youtube_token_vault`    | none | none                                                        | none       | read/write helpers |
+| `channels`               | none | read                                                        | none       | read/write         |
+| `channel_snapshots`      | none | read                                                        | none       | read/write         |
+| `analytics_daily`        | none | read                                                        | none       | read/write         |
+| `analytics_summary`      | none | read                                                        | none       | read/write         |
+| `milestone_states`       | none | read; mark own celebration seen through RPC                 | none       | read/write         |
+| `custom_goals`           | none | create/read/update/delete                                   | none       | read/write         |
+| `manual_metrics`         | none | create/read/update/delete                                   | none       | read/write         |
+| `archive_manifests`      | none | read metadata                                               | none       | read/write         |
+| `youtube_oauth_attempts` | none | none                                                        | none       | read/write         |
+| `data_deletion_requests` | none | none                                                        | none       | read/write         |
 
 Server-only tables still have RLS enabled and intentionally have no browser policies.
 Every channel and Vault mapping carries an owned `connection_id`. Composite foreign keys

@@ -77,12 +77,12 @@ export function SignInMethodsSettings({
         </div>
       </div>
       <div className="sign-in-methods__list">
-        {methods.google ? (
-          <div className="sign-in-methods__row">
-            <span>Google</span>
-            <strong className="settings-status">Connected</strong>
-          </div>
-        ) : null}
+        <div className="sign-in-methods__row">
+          <span>Google</span>
+          <strong className={`settings-status${methods.google ? '' : ' is-neutral'}`}>
+            {methods.google ? 'Connected' : 'Not connected'}
+          </strong>
+        </div>
         <div className="sign-in-methods__row">
           <span>Email &amp; password</span>
           <strong className={`settings-status${passwordEnabled ? '' : ' is-neutral'}`}>
