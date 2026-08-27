@@ -7,6 +7,7 @@ describe('Google OpenID UserInfo identity', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('allows an authorization-code exchange without a new refresh token', async () => {
+    const observeTokenResponse = vi.fn();
     const environment = new Map([
       ['GOOGLE_YOUTUBE_CLIENT_ID', 'youtube-client-id'],
       ['GOOGLE_YOUTUBE_CLIENT_SECRET', 'youtube-client-secret'],
@@ -34,12 +35,27 @@ describe('Google OpenID UserInfo identity', () => {
     );
 
     await expect(
-      exchangeAuthorizationCode('authorization-code', 'pkce-code-verifier'),
+      exchangeAuthorizationCode(
+        'authorization-code',
+        'pkce-code-verifier',
+        observeTokenResponse,
+      ),
     ).resolves.toMatchObject({
       accessToken: 'authorization-access-token-value',
       refreshToken: null,
       scopes: REQUIRED_YOUTUBE_SCOPES,
+      tokenType: 'Bearer',
     });
+    expect(observeTokenResponse).toHaveBeenCalledWith({
+      hasAccessToken: true,
+      hasRefreshToken: false,
+      expiresIn: 3600,
+      scope: REQUIRED_YOUTUBE_SCOPES,
+      tokenType: 'Bearer',
+    });
+    expect(JSON.stringify(observeTokenResponse.mock.calls)).not.toContain(
+      'authorization-access-token-value',
+    );
   });
 
   it('derives the immutable subject and a verified display email server-side', async () => {

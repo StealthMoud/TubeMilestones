@@ -124,7 +124,17 @@ Deno.serve(async (request) => {
       },
       callback.code,
       {
-        exchangeCode: exchangeAuthorizationCode,
+        exchangeCode(code, codeVerifier) {
+          return exchangeAuthorizationCode(code, codeVerifier, (metadata) => {
+            logEvent({
+              requestId,
+              functionName: 'youtube-oauth-callback',
+              stage: 'google-token-response',
+              latencyMs: Math.round(performance.now() - startedAt),
+              ...metadata,
+            });
+          });
+        },
         fetchIdentity: fetchGoogleConnectionIdentity,
         async loadReconnectTarget(targetConnectionId, userId) {
           const target = await admin

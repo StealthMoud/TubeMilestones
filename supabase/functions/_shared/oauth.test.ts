@@ -7,6 +7,7 @@ import {
   assertRequiredScopes,
   buildYouTubeAuthorizationUrl,
   createOAuthAttempt,
+  GOOGLE_USERINFO_EMAIL_SCOPE,
   isLegacyGoogleSubject,
   oauthStartRequestSchema,
   oauthAttemptStateError,
@@ -101,7 +102,7 @@ describe('server OAuth security primitives', () => {
     });
   });
 
-  it('requires both exact YouTube scopes and an offline refresh token', () => {
+  it('accepts the canonical Google email scope and requires both YouTube scopes', () => {
     expect(REQUIRED_YOUTUBE_SCOPES).toEqual([
       'openid',
       'email',
@@ -109,6 +110,14 @@ describe('server OAuth security primitives', () => {
       'https://www.googleapis.com/auth/yt-analytics.readonly',
     ]);
     expect(() => assertRequiredScopes(REQUIRED_YOUTUBE_SCOPES)).not.toThrow();
+    expect(() =>
+      assertRequiredScopes([
+        'openid',
+        GOOGLE_USERINFO_EMAIL_SCOPE,
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/yt-analytics.readonly',
+      ]),
+    ).not.toThrow();
     expect(() => assertRequiredScopes([REQUIRED_YOUTUBE_SCOPES[0]])).toThrow(AppError);
     const tokens = parseGoogleTokenResponse({
       access_token: 'access-token-value-long-enough',

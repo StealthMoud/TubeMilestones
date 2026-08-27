@@ -6,6 +6,11 @@ export interface LogEvent {
   userId?: string;
   errorCode?: string;
   connectionId?: string;
+  hasAccessToken?: boolean;
+  hasRefreshToken?: boolean;
+  expiresIn?: number;
+  scope?: string[];
+  tokenType?: 'Bearer' | 'bearer' | null;
 }
 
 export function logEvent(event: LogEvent): void {

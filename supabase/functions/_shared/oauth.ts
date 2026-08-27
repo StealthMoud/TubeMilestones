@@ -8,6 +8,8 @@ export const YOUTUBE_ANALYTICS_READONLY_SCOPE =
   'https://www.googleapis.com/auth/yt-analytics.readonly';
 export const OPENID_SCOPE = 'openid';
 export const EMAIL_SCOPE = 'email';
+export const GOOGLE_USERINFO_EMAIL_SCOPE =
+  'https://www.googleapis.com/auth/userinfo.email';
 export const REQUIRED_YOUTUBE_SCOPES = [
   OPENID_SCOPE,
   EMAIL_SCOPE,
@@ -108,7 +110,11 @@ export async function validateOAuthAttempt(
 
 export function hasRequiredScopes(scopes: readonly string[]): boolean {
   const granted = new Set(scopes);
-  return REQUIRED_YOUTUBE_SCOPES.every((scope) => granted.has(scope));
+  const hasEmailScope =
+    granted.has(EMAIL_SCOPE) || granted.has(GOOGLE_USERINFO_EMAIL_SCOPE);
+  return REQUIRED_YOUTUBE_SCOPES.every((scope) =>
+    scope === EMAIL_SCOPE ? hasEmailScope : granted.has(scope),
+  );
 }
 
 export function assertRequiredScopes(scopes: readonly string[]): void {
@@ -136,6 +142,7 @@ export interface GoogleTokenSet {
   refreshToken: string | null;
   expiresIn: number;
   scopes: string[];
+  tokenType?: 'Bearer' | 'bearer' | null;
 }
 
 export function parseGoogleTokenResponse(input: unknown): GoogleTokenSet {
@@ -148,6 +155,7 @@ export function parseGoogleTokenResponse(input: unknown): GoogleTokenSet {
     refreshToken: parsed.data.refresh_token ?? null,
     expiresIn: parsed.data.expires_in,
     scopes: (parsed.data.scope ?? '').split(/\s+/u).filter(Boolean),
+    tokenType: parsed.data.token_type ?? null,
   };
 }
 

@@ -11,6 +11,16 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke';
 const USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userinfo';
 
+export interface GoogleTokenResponseMetadata {
+  hasAccessToken: boolean;
+  hasRefreshToken: boolean;
+  expiresIn: number;
+  scope: string[];
+  tokenType: 'Bearer' | 'bearer' | null;
+}
+
+type GoogleTokenResponseObserver = (metadata: GoogleTokenResponseMetadata) => void;
+
 const userInfoSchema = z
   .object({
     sub: z.string().min(1).max(255),
@@ -58,6 +68,7 @@ async function postTokenForm(form: URLSearchParams): Promise<GoogleTokenSet> {
 export async function exchangeAuthorizationCode(
   code: string,
   codeVerifier: string,
+  observeTokenResponse?: GoogleTokenResponseObserver,
 ): Promise<GoogleTokenSet> {
   const tokens = await postTokenForm(
     new URLSearchParams({
@@ -69,6 +80,13 @@ export async function exchangeAuthorizationCode(
       code_verifier: codeVerifier,
     }),
   );
+  observeTokenResponse?.({
+    hasAccessToken: tokens.accessToken.length > 0,
+    hasRefreshToken: tokens.refreshToken !== null,
+    expiresIn: tokens.expiresIn,
+    scope: tokens.scopes,
+    tokenType: tokens.tokenType ?? null,
+  });
   assertRequiredScopes(tokens.scopes);
   return tokens;
 }
