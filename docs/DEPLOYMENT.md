@@ -71,7 +71,10 @@ CI repeats these responsibilities, with a minimal database service for migration
   load at the project path without asset errors.
 - The production bundle contains only the three public frontend configuration values.
 - Google login returns to the Pages project path.
-- YouTube start URL has `accounts.google.com` origin and the exact two read-only scopes.
+- YouTube start URL has `accounts.google.com` origin, `select_account consent`, no login
+  hint, and exactly OpenID/email plus the two read-only YouTube scopes.
+- Two different Google subjects can be added to one TubeMilestones account; channels
+  switch across both, while reconnect and disconnect affect only the selected connection.
 - OAuth callback, sync, 365D history, disconnect, and deletion produce sanitized logs.
 - A second test user cannot read the first user's rows.
 - R2 remains private and an archive round trip passes before hot rows are removed.

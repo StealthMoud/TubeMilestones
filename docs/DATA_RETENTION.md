@@ -2,16 +2,17 @@
 
 ## Retention classes
 
-| Data                          | Location              | Normal retention                          |
-| ----------------------------- | --------------------- | ----------------------------------------- |
-| Supabase identity/profile     | Auth + Postgres       | account lifetime                          |
-| Current channel and summaries | Postgres              | while connected/account active            |
-| Daily analytics and snapshots | Postgres hot tier     | approximately 120 days                    |
-| Complete older months         | private R2 ciphertext | while connected/account active            |
-| Milestones and goals          | Postgres              | while connected/account active            |
-| Google YouTube refresh token  | Supabase Vault        | while authorization is valid              |
-| OAuth attempts                | server-only Postgres  | ten-minute validity; expired rows cleaned |
-| Deletion request audit        | server-only Postgres  | retained to make outcome visible          |
+| Data                          | Location              | Normal retention                            |
+| ----------------------------- | --------------------- | ------------------------------------------- |
+| Supabase identity/profile     | Auth + Postgres       | account lifetime                            |
+| Connection identity/email     | Postgres              | while that YouTube connection is active     |
+| Current channel and summaries | Postgres              | while owning connection/account is active   |
+| Daily analytics and snapshots | Postgres hot tier     | approximately 120 days                      |
+| Complete older months         | private R2 ciphertext | while connected/account active              |
+| Milestones and goals          | Postgres              | while connected/account active              |
+| Google YouTube refresh token  | Supabase Vault        | while its connection authorization is valid |
+| OAuth attempts                | server-only Postgres  | ten-minute validity; expired rows cleaned   |
+| Deletion request audit        | server-only Postgres  | retained to make outcome visible            |
 
 The 120-day boundary is approximate because only complete calendar months older than the
 cutoff are archived. A first daily import requests at most 400 inclusive days (or less
@@ -43,24 +44,29 @@ Analytics sync Cron; normal sync is driven by active users to control quota and 
 
 ## Explicit disconnect
 
-Disconnect removes the YouTube authorization and authorized TubeMilestones data but does
-not delete anything from YouTube. The operation creates a durable request and runs:
+Disconnect targets one explicit YouTube connection. It removes that authorization and
+only the TubeMilestones channels/data owned by it; sibling YouTube connections and the
+TubeMilestones login remain active. It does not delete anything from YouTube. The
+operation creates a durable connection-scoped request and runs:
 
 1. Best-effort Google token revocation
 2. Vault refresh-token deletion
-3. R2 user/channel object deletion and verified absence
-4. Channels, analytics, snapshots, milestones, goals, manual values, manifests, and
-   connection rows in Postgres
+3. R2 deletion and verified absence for that connection's channel IDs
+4. That connection's channels, analytics, snapshots, milestones, goals, manual values,
+   manifests, and connection row in Postgres
+5. Selection of a surviving channel when the disconnected connection was selected
 
 If Google revocation is unavailable, local/provider-stored data removal continues. A
 failure in R2 or database deletion is recorded as retryable rather than hidden.
 
 ## Account deletion
 
-Account deletion uses the same provider/data purge, then removes the profile and
-Supabase Auth user. The durable audit record does not depend on an `auth.users` foreign
-key, so it can record completion or failure after the identity is gone. Duplicate active
-requests are idempotently returned.
+Account deletion is globally scoped: it uses the same provider/data purge for every
+connected YouTube account, then removes the profile and Supabase Auth user. Signing out
+is not deletion and does not revoke any YouTube connection. The durable audit record does
+not depend on an `auth.users` foreign key, so it can record completion or failure after
+the identity is gone. Duplicate active requests are idempotently returned within their
+connection or global scope.
 
 ## Retry lifecycle
 

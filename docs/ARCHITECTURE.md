@@ -47,18 +47,22 @@ writes occur through Edge Functions with an elevated server client.
 
 ```text
 Authenticated browser
-  └─> youtube-oauth-start
+  └─> youtube-oauth-start (ADD or exact RECONNECT target)
         ├─ creates 32-byte random state; stores SHA-256 hash + PKCE verifier
+        ├─ stores intent and optional owned connection ID
         ├─ expires attempt after 10 minutes
-        └─ returns accounts.google.com authorization URL
+        └─ returns account chooser + consent URL
 
 Google callback
   └─> youtube-oauth-callback (public transport endpoint)
         ├─ atomically consumes state once
         ├─ validates expiry and PKCE
         ├─ exchanges code with server client secret
-        ├─ verifies exact scopes and a usable YouTube channel
-        ├─ stores/rotates refresh token through a Vault helper
+        ├─ verifies openid, email, and both YouTube read-only scopes
+        ├─ derives Google sub + verified email from server-side UserInfo
+        ├─ rejects a wrong reconnect identity before mutation
+        ├─ discovers every usable YouTube channel
+        ├─ atomically resolves identity, Vault token, channels, and selection
         └─ redirects only to configured FRONTEND_URL callback state
 ```
 
@@ -69,16 +73,24 @@ the redirect destination is fixed server configuration, not request input.
 ## Supabase to YouTube
 
 ```text
-Browser ── JWT ──> youtube-sync
-                    ├─ atomic five-minute cooldown claim
+Browser ── JWT + selected channel ──> youtube-sync
+                    ├─ resolves that channel's owned connection
+                    ├─ atomic per-connection five-minute cooldown claim
                     ├─ three-minute overlap lock
                     ├─ Vault refresh-token read
                     ├─ Google access-token refresh / rotation
                     ├─ YouTube Data + Analytics reads
                     ├─ exact-string parsing for large integers
-                    ├─ channel, summary, daily, snapshot writes
+                    ├─ connection-scoped channel upsert; no reassignment
+                    ├─ summary, daily, and snapshot writes for the selected channel
                     └─ milestone detection + sync completion
 ```
+
+A TubeMilestones user may own zero or many YouTube connections. A connection is keyed by
+`(user_id, google_subject)` and owns exactly one Vault mapping plus one or more channels.
+The same Google subject may be connected by a different TubeMilestones user. Channel
+uniqueness remains `(user_id, youtube_channel_id)`, and conflict handling omits a channel
+already owned by another connection instead of silently reassigning it.
 
 A failed reconnect does not destroy an existing valid connection. `invalid_grant` becomes
 a typed reauthorization state. A reconnect that does not return the required offline
@@ -148,43 +160,46 @@ same claim ID. A `RUNNING` claim older than 15 minutes is reclaimable after a cr
 ## Deletion across providers
 
 ```text
-User disconnect/account delete
+One-connection disconnect / whole-account delete
         ↓ persistent data_deletion_request
 best-effort Google revocation
         ↓
-delete Vault credential
+delete exact Vault credential / every Vault credential
         ↓
 list/delete R2 prefix and verify absence
         ↓
-delete authorized Postgres rows
+delete exact connection rows / every account row
         ↓
 optional profile + Supabase Auth user removal
         ↓
 COMPLETE, or FAILED_RETRYABLE for Cron
 ```
 
-Revocation failure cannot strand stored data. R2 absence is verified before authoritative
-database records are removed. The audit request deliberately survives account deletion
-without an `auth.users` foreign key. Repeated account-delete requests return the existing
-active request instead of creating competing purges.
+Revocation failure cannot strand stored data. A disconnect carries `connection_id`,
+removes only that connection's credentials, channel archives, and cascading rows, and
+selects a surviving fallback channel when needed. Account deletion has a null connection
+scope and removes every connection plus the profile/Auth identity. R2 absence is verified
+before authoritative database records are removed. The audit request deliberately
+survives account deletion without an `auth.users` foreign key. Duplicate active requests
+are unique within their exact connection or global scope.
 
 ## Data model
 
-| Table                    | Purpose                                   | Browser boundary                 |
-| ------------------------ | ----------------------------------------- | -------------------------------- |
-| `profiles`               | theme and selected channel                | read own; update two own columns |
-| `youtube_connections`    | grant, verification, sync lifecycle       | read own                         |
-| `youtube_token_vault`    | Vault secret references                   | server only                      |
-| `channels`               | current channel identity and statistics   | read own                         |
-| `channel_snapshots`      | observed historical state                 | read own                         |
-| `analytics_daily`        | hot daily Analytics                       | read own                         |
-| `analytics_summary`      | reporting coverage and watch-time summary | read own                         |
-| `milestone_states`       | derived standard/custom checkpoint state  | read own; RPC marks seen         |
-| `custom_goals`           | user-created goals                        | own CRUD                         |
-| `manual_metrics`         | user-entered YPP guidance                 | own CRUD                         |
-| `archive_manifests`      | encrypted cold object metadata            | read own                         |
-| `youtube_oauth_attempts` | state hash and PKCE verifier              | server only                      |
-| `data_deletion_requests` | durable purge lifecycle                   | server only                      |
+| Table                    | Purpose                                              | Browser boundary                 |
+| ------------------------ | ---------------------------------------------------- | -------------------------------- |
+| `profiles`               | theme and selected channel                           | read own; update two own columns |
+| `youtube_connections`    | Google subject/email and independent grant lifecycle | read own                         |
+| `youtube_token_vault`    | one Vault secret reference per connection            | server only                      |
+| `channels`               | current channel identity, connection, and statistics | read own                         |
+| `channel_snapshots`      | observed historical state                            | read own                         |
+| `analytics_daily`        | hot daily Analytics                                  | read own                         |
+| `analytics_summary`      | reporting coverage and watch-time summary            | read own                         |
+| `milestone_states`       | derived standard/custom checkpoint state             | read own; RPC marks seen         |
+| `custom_goals`           | user-created goals                                   | own CRUD                         |
+| `manual_metrics`         | user-entered YPP guidance                            | own CRUD                         |
+| `archive_manifests`      | encrypted cold object metadata                       | read own                         |
+| `youtube_oauth_attempts` | state hash and PKCE verifier                         | server only                      |
+| `data_deletion_requests` | connection-scoped or global purge lifecycle          | server only                      |
 
 ## Source layout
 

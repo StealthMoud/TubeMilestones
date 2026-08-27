@@ -27,7 +27,7 @@
 
     <main class="legal-main">
       <header class="legal-title">
-        <p>Last updated August 26, 2026</p>
+        <p>Last updated August 27, 2026</p>
         <h1>Privacy policy.</h1>
         <p>
           This page explains which account and YouTube data TubeMilestones uses, why it
@@ -48,14 +48,24 @@
         </section>
 
         <section>
-          <h2>Two separate Google uses</h2>
+          <h2>Separate login and connected YouTube identities</h2>
           <p>
             “Continue with Google” uses Supabase Auth to establish TubeMilestones
             application identity from basic profile, email, and OpenID information. That
             sign-in alone does not grant YouTube access.
           </p>
-          <p>“Connect YouTube” separately requests only these read-only scopes:</p>
+          <p>
+            “Connect YouTube account” uses a separate Google OAuth client. You may
+            choose a different Google account from the one used to sign into
+            TubeMilestones, and one TubeMilestones account may connect multiple
+            Google/YouTube accounts. Each connection requests only these scopes:
+          </p>
           <ul>
+            <li>
+              <code>openid</code> and <code>email</code> to identify that connected
+              Google account using its stable subject and, when verified by Google, show
+              its email so you can distinguish it in Settings.
+            </li>
             <li>
               <code>https://www.googleapis.com/auth/youtube.readonly</code> for channel
               identity and statistics.
@@ -67,14 +77,22 @@
           </ul>
           <p>
             These permissions cannot upload, edit, or delete videos, manage comments, or
-            change your channel.
+            change your channel. Google always presents an account chooser for a new
+            connection or reconnect. Connected-account identity is derived by trusted
+            server code, not accepted from browser input.
           </p>
         </section>
 
         <section>
           <h2>Data used</h2>
           <ul>
-            <li>TubeMilestones account ID, email, display name, and profile image;</li>
+            <li>
+              TubeMilestones login account ID, email, display name, and profile image;
+            </li>
+            <li>
+              for each connected YouTube authorization, Google's stable subject and a
+              verified email label when available;
+            </li>
             <li>
               channel ID, title, thumbnail, creation date, uploads playlist, and
               API-reported subscriber, view, and video counts;
@@ -124,9 +142,10 @@
           <p>
             The YouTube authorization-code exchange and token refresh occur in Supabase
             Edge Functions. The Google client secret is server-only. A YouTube refresh
-            token is stored through Supabase Vault and is not returned to the browser.
-            Google provider-token fields from application sign-in are stripped before
-            the Supabase session state is persisted by the app.
+            token for each connection is stored through a separate Supabase Vault
+            mapping and is not returned to the browser. Google provider-token fields
+            from application sign-in are stripped before the Supabase session state is
+            persisted by the app.
           </p>
           <p>
             Database access is restricted by grants and row-level security. Archives use
@@ -151,18 +170,22 @@
         <section>
           <h2>Retention, authorization, and deletion</h2>
           <p>
-            Current state and encrypted history are retained while the account and
-            authorization remain active. Authorization is periodically revalidated.
-            Transient failures may be retried, but a permanent revocation or failure to
-            verify by the 30-day limit starts the authorized-data purge lifecycle.
+            Current state and encrypted history are retained while the account and its
+            owning authorization remain active. Each authorization is periodically
+            revalidated independently. Transient failures may be retried, but a
+            permanent revocation or failure to verify by the 30-day limit starts the
+            authorized-data purge lifecycle.
           </p>
           <p>
-            Disconnect requests best-effort Google revocation, removes the stored Vault
-            credential, deletes and verifies absence of encrypted R2 objects, then
-            removes authorized database rows. It does not delete anything from YouTube.
-            Account deletion also removes the TubeMilestones profile and authentication
-            account. Failures remain recorded for retry instead of being represented as
-            complete.
+            Disconnect targets one connected YouTube account: it requests best-effort
+            Google revocation, removes that connection's stored Vault credential,
+            deletes and verifies absence of encrypted R2 objects for its channels, then
+            removes only its authorized database rows. Other connected YouTube accounts
+            remain. It does not delete anything from YouTube. Signing out only ends the
+            TubeMilestones session and does not revoke YouTube connections. Account
+            deletion removes every connected YouTube account, the TubeMilestones
+            profile, and the authentication account. Failures remain recorded for retry
+            instead of being represented as complete.
           </p>
           <p>
             You may also review or revoke access at

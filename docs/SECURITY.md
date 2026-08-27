@@ -6,18 +6,19 @@ hosting is never treated as a secret-bearing runtime.
 
 ## Credential boundary
 
-| Credential                       | Browser  | Supabase trusted runtime | Persistent location                |
-| -------------------------------- | -------- | ------------------------ | ---------------------------------- |
-| Supabase publishable key         | yes      | yes                      | public build configuration         |
-| Supabase user session            | yes      | verified by Auth         | sanitized Auth client storage      |
-| Google identity provider token   | stripped | Supabase Auth only       | not retained by app storage        |
-| Google YouTube access token      | no       | short-lived use          | function memory only               |
-| Google YouTube refresh token     | no       | yes                      | Supabase Vault reference only      |
-| Google YouTube client secret     | no       | yes                      | Edge secret                        |
-| Supabase secret/service-role key | no       | database administration  | hosted runtime                     |
-| TubeMilestones automation secret | no       | Cron worker auth         | Edge secret + Cron Vault reference |
-| R2 access and secret keys        | no       | yes                      | Edge secrets                       |
-| Archive master key               | no       | yes                      | versioned Edge secret              |
+| Credential                       | Browser  | Supabase trusted runtime | Persistent location                 |
+| -------------------------------- | -------- | ------------------------ | ----------------------------------- |
+| Supabase publishable key         | yes      | yes                      | public build configuration          |
+| Supabase user session            | yes      | verified by Auth         | sanitized Auth client storage       |
+| Google identity provider token   | stripped | Supabase Auth only       | not retained by app storage         |
+| Connected Google subject/email   | no       | yes                      | connection row; verified label only |
+| Google YouTube access token      | no       | short-lived use          | function memory only                |
+| Google YouTube refresh token     | no       | yes                      | Supabase Vault reference only       |
+| Google YouTube client secret     | no       | yes                      | Edge secret                         |
+| Supabase secret/service-role key | no       | database administration  | hosted runtime                      |
+| TubeMilestones automation secret | no       | Cron worker auth         | Edge secret + Cron Vault reference  |
+| R2 access and secret keys        | no       | yes                      | Edge secrets                        |
+| Archive master key               | no       | yes                      | versioned Edge secret               |
 
 Frontend code rejects unconfigured cloud state and only accepts an HTTPS Supabase URL
 plus current publishable key outside localhost. A storage adapter recursively strips
@@ -49,7 +50,14 @@ that same user. Elevated server access uses a secret/service-role client.
 | `data_deletion_requests` | none | none                                        | none       | read/write         |
 
 Server-only tables still have RLS enabled and intentionally have no browser policies.
-Sensitive refresh-token helpers, sync claims, OAuth-attempt consumption, and Cron setup
+Every channel and Vault mapping carries an owned `connection_id`. Composite foreign keys
+prevent cross-user attachment. `(user_id, google_subject)` makes a Google identity unique
+inside one TubeMilestones account but permits that identity under another app user.
+`(user_id, youtube_channel_id)` remains unique, and the trusted channel upsert updates a
+conflict only when it already belongs to the same connection.
+
+Sensitive connection-scoped refresh-token helpers, sync claims, OAuth-attempt
+consumption, and Cron setup
 revoke execution from public/browser roles. The celebration RPC is `SECURITY DEFINER` but
 can only set `celebration_seen=true` where the row user matches `auth.uid()`; direct table
 update is not granted.
@@ -63,7 +71,14 @@ update is not granted.
 - PKCE uses S256 and a high-entropy verifier.
 - The redirect destination is the configured `FRONTEND_URL`, never a request parameter.
 - The token exchange and client secret stay on the server.
-- Granted scopes and a usable channel are validated before state mutation.
+- ADD and RECONNECT both force `select_account consent`; no login hint bypasses the
+  chooser.
+- Granted OpenID/email and both YouTube read-only scopes are validated.
+- Google `sub`, verified email, and usable channels are derived server-side.
+- ADD/RECONNECT intent and the optional target connection are bound into the stored state.
+- RECONNECT compares the returned subject with the target before persistent mutation.
+- Identity, credential, channel attachment, and initial selection commit in one database
+  transaction.
 - A reconnect failure preserves an existing credential/connection.
 - Responses and logs never echo codes, tokens, verifier, state, or provider payloads.
 
@@ -89,11 +104,13 @@ falls back. Rotation keeps old keys until no manifest references them.
 
 ## Deletion security
 
-Deletion creates a durable request before work. The purge order is best-effort Google
-revocation, Vault credential deletion, R2 prefix deletion plus absence verification,
-authorized Postgres removal, and optional Auth deletion. Revocation failure never blocks
-data removal. Failures stay visible as retryable or final audit states; Cron retries a
-bounded number of times.
+Deletion creates a durable request before work. A YouTube disconnect is keyed by
+`(user_id, connection_id)` and cannot touch sibling connections; account deletion has a
+null connection scope and removes them all. The purge order is best-effort Google
+revocation, exact Vault credential deletion, affected-channel R2 deletion plus absence
+verification, authorized Postgres removal, and optional Auth deletion. Revocation
+failure never blocks data removal. Failures stay visible as retryable or final audit
+states; Cron retries a bounded number of times.
 
 ## Logging and dependencies
 

@@ -7,12 +7,13 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
 
 - [x] Static Pages frontend contains no trusted provider SDK or elevated credential path
 - [x] Supabase Auth identity and separate server YouTube authorization are implemented
+- [x] One TubeMilestones user can own multiple independently identified YouTube connections
 - [x] Migrations define the hot data model, RLS, grants, Vault helpers, and Cron installer
 - [x] Eight Edge entrypoints share typed OAuth, sync, archive, history, and deletion logic
-- [x] Refresh tokens are referenced through Vault helpers, not browser-visible tables
+- [x] Refresh tokens are mapped per connection through Vault helpers, not browser-visible tables
 - [x] Hot/cold archive uses gzip, per-user HKDF keys, AES-256-GCM, checksum, and manifests
 - [x] Deletion is durable, ordered, idempotent, retryable, and does not depend on revocation
-- [x] Compliance/deletion work uses bounded, oldest-first atomic claims and stale recovery
+- [x] Sync, compliance, disconnect, and deletion work is claimed and executed per connection
 - [x] Browser reads exact bigint strings and rejects values beyond safe display precision
 - [x] Unit/component/backend/security and responsive browser tests are present
 - [x] Initial daily Analytics import is bounded to 400 days; later syncs use 120 days
@@ -25,24 +26,24 @@ tree does not prove that Google, Supabase, R2, Cron, or GitHub variables are con
 
 - [ ] Buy/select an owned production domain and complete the documented cutover
 - [ ] Verify that domain in Google Search Console
-- [ ] Publish the real private privacy/support contact email
-- [ ] Create/select the isolated production Supabase project and region
-- [ ] Create the private production R2 bucket and bucket-scoped credential
-- [ ] Configure Supabase Auth Google Client A and the exact redirect allow-list
-- [ ] Configure separate server-side YouTube Google Client B
+- [x] Publish the real private privacy/support contact email
+- [x] Create/select the isolated production Supabase project and region
+- [x] Create the private production R2 bucket and bucket-scoped credential
+- [x] Configure Supabase Auth Google Client A and the exact redirect allow-list
+- [x] Configure separate server-side YouTube Google Client B
 - [ ] Configure OAuth test users while the consent screen remains in testing
 - [ ] Complete Google OAuth verification wherever Google requires it
-- [ ] Generate a dedicated `TUBEMILESTONES_AUTOMATION_SECRET`, independent from
+- [x] Generate a dedicated `TUBEMILESTONES_AUTOMATION_SECRET`, independent from
       Supabase secret/service-role credentials
-- [ ] Generate and back up `ARCHIVE_MASTER_KEY_V1`; set
+- [x] Generate and back up `ARCHIVE_MASTER_KEY_V1`; set
       `ARCHIVE_ACTIVE_KEY_VERSION=1`
-- [ ] Configure every documented Edge Function secret, including `FRONTEND_URL` and the
+- [x] Configure every documented Edge Function secret, including `FRONTEND_URL` and the
       explicit `TUBEMILESTONES_ALLOWED_ORIGINS`
-- [ ] Apply migrations, regenerate database types from the live schema, and deploy every
+- [x] Apply migrations, regenerate/refine database types, and deploy every changed
       Edge Function
-- [ ] Store the project URL, public publishable key, and dedicated automation secret in
+- [x] Store the project URL, public publishable key, and dedicated automation secret in
       Cron Vault; install and exercise both jobs
-- [ ] Add the three public GitHub repository variables and confirm Pages Actions source
+- [x] Add the three public GitHub repository variables and confirm Pages Actions source
 - [ ] Pass a live two-user RLS/server-only RPC isolation test
 - [ ] Pass real Google sign-in and YouTube OAuth/reconnect/callback tests
 - [ ] Pass a real initial and repeat YouTube sync

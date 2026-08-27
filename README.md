@@ -9,8 +9,10 @@
   Know where you stand, what comes next, and what you have already achieved.
 </p>
 
-TubeMilestones is a mobile-first React application that turns authorized YouTube channel
-statistics into an honest personal progression path. GitHub Pages serves only the UI;
+TubeMilestones is a mobile-first React application that turns statistics from authorized
+YouTube channels into honest personal progression paths. One TubeMilestones account can
+connect multiple Google/YouTube accounts and switch across all of their channels.
+GitHub Pages serves only the UI;
 Supabase owns identity, server-side YouTube access, hot data, and trusted workflows;
 encrypted older history lives in a private Cloudflare R2 bucket.
 
@@ -24,7 +26,8 @@ encrypted older history lives in a private Cloudflare R2 bucket.
 - Clearly labeled, user-entered YouTube Partner Program guidance values
 - System, premium dark, and intentional warm-light appearance modes
 - Separate Google application sign-in and read-only YouTube authorization
-- Disconnect, account deletion, authorization revalidation, and retryable purge workflows
+- Multiple independently authorized YouTube accounts with one cross-account channel switcher
+- Connection-scoped reconnect, disconnect, revalidation, and retryable purge workflows
 
 ## Screenshots
 
@@ -56,7 +59,8 @@ GitHub Pages browser ── Supabase JWT ──> Supabase Auth + Postgres + RLS
                                                  private Cloudflare R2
 ```
 
-The browser never receives the Google YouTube refresh token, Google client secret, R2
+Each YouTube connection has an independent Google subject, Vault credential, lifecycle,
+and set of channels. The browser never receives the Google YouTube refresh token, Google client secret, R2
 credentials, archive master key, or a Supabase elevated key. R2 is never called directly
 from frontend code. GitHub remains source control and does not store user analytics.
 

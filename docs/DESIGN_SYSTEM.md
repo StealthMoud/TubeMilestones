@@ -38,9 +38,10 @@ their meaning in both modes.
 ## Screen hierarchy
 
 Home has one focal milestone. Journey has one vertical spine. Analytics has one leading
-number and chart. Settings uses native-feeling grouped rows. The mobile header keeps the
-channel identity left and refresh/avatar actions right; the bottom navigation stays
-visually quiet.
+number and chart. Settings uses native-feeling grouped rows and clearly separates the
+TubeMilestones login from connected YouTube accounts. The header keeps a channel-first
+cross-account switcher left and the refresh action right; it never substitutes the login
+email for channel identity. The bottom navigation stays visually quiet.
 
 ## Motion
 

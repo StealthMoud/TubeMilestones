@@ -56,21 +56,35 @@ GOOGLE_YOUTUBE_REDIRECT_URI
 The server requests exactly:
 
 ```text
+openid
+email
 https://www.googleapis.com/auth/youtube.readonly
 https://www.googleapis.com/auth/yt-analytics.readonly
 ```
 
-It uses authorization-code flow with `access_type=offline`, `prompt=consent`, PKCE S256,
-and a single-use state value. TubeMilestones deliberately requires Google to return a
-refresh token even during reconnect. If it is missing, reconnect follows Option A: it
-fails safely before channel, Vault, or connection changes, preserving the previous valid
-credential/connection. The client secret and refresh token must never be placed in
-GitHub variables, `.env.local`, the browser, logs, or documentation screenshots.
+It uses authorization-code flow with `access_type=offline`,
+`prompt=select_account consent`, PKCE S256, and a single-use state value. Do not add a
+`login_hint`: ADD and RECONNECT must both show Google's account chooser. The callback
+calls Google's OpenID UserInfo endpoint server-side and uses `sub` as the stable
+connection identity. It stores `email` only when `email_verified=true`, solely as the
+owner-facing account label.
+
+ADD creates or refreshes the connection for `(TubeMilestones user, Google sub)`.
+RECONNECT includes an exact owned connection ID and rejects a different Google `sub`
+before any Vault, channel, or lifecycle mutation. Legacy connections may establish their
+first real subject once. TubeMilestones deliberately requires Google to return a refresh
+token even during reconnect. If it is missing, reconnect fails safely before channel,
+Vault, or connection changes, preserving the previous valid credential/connection. The
+client secret and refresh token must never be placed in GitHub variables, `.env.local`,
+the browser, logs, or documentation screenshots.
 
 ## Consent and verification
 
 Present the two steps plainly in the product: “Continue with Google” creates or restores
-the TubeMilestones account; “Connect YouTube” requests read-only channel access. The
+the TubeMilestones account; “Connect YouTube account” requests connection identity and
+read-only channel access. Explicitly state that these may be different Google accounts.
+After connection, show Client B's verified email only in connected-account management;
+the channel switcher must show channel identity rather than the Client A login email. The
 consent-screen copy, homepage, privacy policy, terms, authorized domains, and product UI
 must all describe the same use.
 
@@ -84,9 +98,14 @@ the repository cannot claim approval.
 - Client A redirects only to Supabase Auth and produces a normal Supabase session.
 - Client B redirects only to `youtube-oauth-callback`.
 - The callback URL, client ID, and client secret all belong to Client B.
-- Consent lists only the two read-only YouTube scopes.
+- Consent lists only `openid`, `email`, and the two read-only YouTube scopes.
+- ADD and RECONNECT both include `prompt=select_account consent` and no `login_hint`.
+- UserInfo `sub` is derived server-side; unverified email is not stored as a label.
 - A denied or expired attempt returns a typed safe error to the fixed frontend callback.
 - Replaying state fails; an attempt older than ten minutes fails.
 - A reconnect response without a refresh token fails before any persistent mutation.
 - A failed reconnect leaves an existing valid connection and credential intact.
+- Choosing the wrong Google account for RECONNECT returns `YOUTUBE_ACCOUNT_MISMATCH`
+  without mutating either connection.
+- A user can add two different Google subjects and switch across all discovered channels.
 - Google Account permissions can revoke the grant and the app then requests reconnect.

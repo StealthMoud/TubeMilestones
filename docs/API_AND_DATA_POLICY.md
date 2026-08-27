@@ -18,12 +18,18 @@ profile`. It does not grant YouTube data access.
 The separate server-side YouTube OAuth client requests exactly:
 
 ```text
+openid
+email
 https://www.googleapis.com/auth/youtube.readonly
 https://www.googleapis.com/auth/yt-analytics.readonly
 ```
 
-The app cannot upload, edit, delete, or manage YouTube content. The callback validates a
-usable YouTube channel before committing a new connection.
+`openid` and `email` let the trusted callback derive the Client B Google `sub` and a
+verified display email from UserInfo. The subject is the stable connection key; the
+verified email is stored only so the owner can distinguish connected accounts. Neither
+value is taken from browser input. The app cannot upload, edit, delete, or manage YouTube
+content. The callback validates a usable YouTube channel before committing a new
+connection.
 
 ## Data read from YouTube
 
@@ -47,6 +53,11 @@ does not invent precision.
 Users may set theme, selected channel, custom goals, target dates, qualified public watch
 hours, and qualified Shorts views. YPP values are not sent to Google and are not treated
 as official eligibility data.
+
+One TubeMilestones user may authorize many Google subjects, while the same Google subject
+may appear under a different TubeMilestones user. Credentials, channel ownership, sync
+claims, compliance, and deletion are connection scoped. A channel identifier remains
+unique per TubeMilestones user and is never silently reassigned between connections.
 
 ## Browser data
 
@@ -87,6 +98,7 @@ analytics or advertising tracker is included.
 ## Errors
 
 Server responses use typed stable codes such as `AUTH_REQUIRED`, `SYNC_COOLDOWN`,
-`SYNC_IN_PROGRESS`, `YOUTUBE_REAUTH_REQUIRED`, `R2_UNAVAILABLE`, and
+`SYNC_IN_PROGRESS`, `YOUTUBE_REAUTH_REQUIRED`, `YOUTUBE_ACCOUNT_MISMATCH`,
+`YOUTUBE_CHANNELS_ALREADY_CONNECTED`, `GOOGLE_IDENTITY_FAILED`, `R2_UNAVAILABLE`, and
 `ARCHIVE_CORRUPT`. The frontend maps them to contextual, non-sensitive copy. Internal
 provider responses and secrets are never forwarded verbatim.

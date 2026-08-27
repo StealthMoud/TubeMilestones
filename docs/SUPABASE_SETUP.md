@@ -26,6 +26,12 @@ project.
 
 7. Confirm the `vault`, `pg_cron`, and `pg_net` extensions are available after migration.
 8. Inspect every table under Database → Policies and verify RLS is enabled.
+   Confirm the multi-account migration produced:
+   - `youtube_connections.id`, `google_subject`, and optional `google_email`, with unique
+     `(user_id, google_subject)`;
+   - `channels.connection_id` and `youtube_token_vault.connection_id`, both constrained
+     to a connection owned by the same user;
+   - connection-scoped OAuth intent, sync/compliance claims, and deletion requests.
 9. Deploy all Edge Functions:
 
    ```bash
@@ -110,8 +116,11 @@ project.
     Do not add a full YouTube synchronization Cron job.
 
 15. Trigger each job in a safe test project and inspect typed counts plus sanitized logs.
-16. Verify RLS with two test users: own rows must be accessible where documented; the
-    other user's rows and every server-only table/RPC must be inaccessible.
+16. Verify RLS with two test users and at least three connections: one user owns Google
+    subjects A and B; another user may own subject B independently. Own rows must be
+    accessible where documented; the other user's rows and every server-only table/RPC
+    must be inaccessible. Confirm that credentials, claims, channels, and scoped deletion
+    remain bound to the exact connection.
 
 ## Hosted runtime keys
 
@@ -148,5 +157,7 @@ npm run db:test
 npx supabase stop --no-backup
 ```
 
-CI starts a minimal local Supabase database, applies all migrations, fails on SQL lint
-errors, and runs pgTAP privilege/concurrency tests for both server-only claim RPCs.
+CI starts a minimal local Supabase database, applies all migrations, fails on public
+schema lint errors, and runs pgTAP privilege/concurrency/isolation tests for multiple
+connections, Vault mappings, channel ownership, both server-only claim RPCs, and scoped
+versus global deletion.
