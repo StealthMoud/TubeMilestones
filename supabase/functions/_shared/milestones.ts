@@ -82,7 +82,7 @@ function existingFor(
   return input.existing.find(
     (state) =>
       state.metric === metric &&
-      state.target === target.toString() &&
+      Number(state.target) === target &&
       state.custom_goal_id === customGoalId,
   );
 }
@@ -153,7 +153,7 @@ export function evaluateBackendMilestones(input: MilestoneEvaluationInput): {
           ? 'TRACKED_CROSSING'
           : 'PREEXISTING';
     const row: BackendMilestoneRow = {
-      id: prior?.id,
+      ...(prior ? { id: prior.id } : {}),
       user_id: input.userId,
       channel_id: input.channelId,
       metric,
