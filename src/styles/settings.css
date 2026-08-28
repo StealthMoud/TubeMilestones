@@ -64,6 +64,24 @@
   background: var(--tm-surface);
 }
 
+.settings-list--rows {
+  overflow: visible;
+  border-inline: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.settings-list--rows .settings-row,
+.settings-list--rows .settings-profile__summary,
+.settings-list--rows .sign-in-methods,
+.settings-list--rows.settings-list--links > a {
+  padding-inline: 0;
+}
+
+.settings-list--rows .settings-connection {
+  padding-inline: 0;
+}
+
 .settings-connection {
   display: grid;
   padding: var(--space-4);

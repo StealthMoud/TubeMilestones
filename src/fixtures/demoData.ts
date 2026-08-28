@@ -35,19 +35,20 @@ interface FixtureDefinition {
   analytics?: boolean;
   analyticsDays?: number;
   analyticsScale?: number;
+  customGoals?: boolean;
 }
 
 const FIXTURES: Record<DemoFixtureName, FixtureDefinition> = {
   small: {
-    title: 'Northstar Frames',
-    subscriberCount: 742,
+    title: 'HackFrame',
+    subscriberCount: 586,
     viewCount: 48_200,
     videoCount: 23,
     analytics: true,
     analyticsScale: 1,
   },
   growing: {
-    title: 'Fieldcraft Cinema',
+    title: 'Syntax Sphere',
     subscriberCount: 12_300,
     viewCount: 1_823_400,
     videoCount: 86,
@@ -64,10 +65,13 @@ const FIXTURES: Record<DemoFixtureName, FixtureDefinition> = {
   },
   persian: {
     title: 'آخه چرا؟',
-    subscriberCount: 25,
+    subscriberCount: 28,
     viewCount: 1_288,
     videoCount: 4,
-    analytics: false,
+    analytics: true,
+    analyticsDays: 3,
+    analyticsScale: 0.18,
+    customGoals: false,
   },
   hidden: {
     title: 'Private Signals',
@@ -213,17 +217,20 @@ export function createDemoDashboard(name: DemoFixtureName = 'small'): DashboardD
         fetchedAt: DEMO_NOW,
       }
     : null;
-  const customGoals: CustomGoal[] = [
-    {
-      id: `goal-${name}-1`,
-      channelId,
-      metric: 'views',
-      target: fixture.viewCount < 100_000 ? 100_000 : fixture.viewCount * 2,
-      title: 'Next view chapter',
-      createdAt: '2026-08-10T10:00:00.000Z',
-      targetDate: '2026-12-31',
-    },
-  ];
+  const customGoals: CustomGoal[] =
+    fixture.customGoals === false
+      ? []
+      : [
+          {
+            id: `goal-${name}-1`,
+            channelId,
+            metric: 'views',
+            target: fixture.viewCount < 100_000 ? 100_000 : fixture.viewCount * 2,
+            title: 'Next view chapter',
+            createdAt: '2026-08-10T10:00:00.000Z',
+            targetDate: '2026-12-31',
+          },
+        ];
 
   return {
     channel,

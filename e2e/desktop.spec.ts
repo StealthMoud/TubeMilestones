@@ -74,13 +74,13 @@ test('desktop Home and Journey use the sidebar composition without overflow', as
   await expect(page.locator('.desktop-sidebar')).toBeVisible();
   await expect(page.locator('.mobile-navigation-wrap')).toBeHidden();
 
-  await page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel').click();
+  await page.getByLabel('Current channel: Syntax Sphere. Switch channel').click();
   await expect(page.getByText(/youtube-owner@example\.com/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add YouTube account' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.channel-switcher__panel')).toBeHidden();
   await expect(
-    page.getByLabel('Current channel: Fieldcraft Cinema. Switch channel'),
+    page.getByLabel('Current channel: Syntax Sphere. Switch channel'),
   ).toBeFocused();
 
   await page.getByLabel('TubeMilestones profile: Demo creator').click();
@@ -130,6 +130,118 @@ test('Journey keeps one next checkpoint, shows history, and exports a PNG', asyn
   await expectNoHorizontalOverflow(page);
 });
 
+test('Journey hierarchy, column balance, and empty checkpoints stay compact', async ({
+  page,
+}) => {
+  await page.goto('/#/journey?demo=growing');
+  await expect(
+    page.getByRole('heading', { name: 'Your milestone journey.' }),
+  ).toBeVisible();
+
+  const composition = await page.evaluate(() => {
+    const title = document.querySelector('.journey-heading h1');
+    const primary = document.querySelector('.journey-primary');
+    const secondary = document.querySelector('.journey-secondary');
+    if (!title || !primary || !secondary) return null;
+    const primaryWidth = primary.getBoundingClientRect().width;
+    const secondaryWidth = secondary.getBoundingClientRect().width;
+    return {
+      titleSize: Number.parseFloat(getComputedStyle(title).fontSize),
+      primaryShare: primaryWidth / (primaryWidth + secondaryWidth),
+    };
+  });
+  expect(composition).not.toBeNull();
+  expect(composition!.titleSize).toBeGreaterThanOrEqual(30);
+  expect(composition!.titleSize).toBeLessThanOrEqual(34);
+  expect(composition!.primaryShare).toBeGreaterThanOrEqual(0.66);
+  expect(composition!.primaryShare).toBeLessThanOrEqual(0.72);
+
+  await page.goto('/#/journey?demo=persian');
+  await page.reload();
+  const empty = page.locator('.custom-goals-empty');
+  await expect(empty).toContainText('No custom checkpoints');
+  await expect(empty).toContainText('Create one for a personal target.');
+  expect(
+    await empty.evaluate((element) => element.getBoundingClientRect().height),
+  ).toBeLessThan(72);
+  await expect(
+    page.getByRole('heading', { name: 'YouTube Partner Program progress' }),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Home uses one segment progress model and sparse history stays honest', async ({
+  page,
+}) => {
+  await page.goto('/#/?demo=small');
+
+  const progress = page.getByRole('progressbar', { name: '1K' });
+  await expect(progress).toHaveAttribute('aria-valuemin', '500');
+  await expect(progress).toHaveAttribute('aria-valuemax', '1000');
+  await expect(progress).toHaveAttribute('aria-valuenow', '586');
+  await expect(page.getByText('17%')).toBeVisible();
+  await expect(page.getByText(/Current segment 500 → 1K/u)).toBeVisible();
+  await expect(page.getByText('59%')).toHaveCount(0);
+  await expect(page.getByText(/Subscribers progress/u)).toHaveCount(0);
+
+  await page.goto('/#/?demo=persian');
+  await page.reload();
+  await expect(page.locator('.movement-sparse')).toBeVisible();
+  await expect(page.locator('.movement-chart')).toHaveCount(0);
+  await expect(page.getByText('3 reported days since Aug 22')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('pointer navigation stays quiet while keyboard focus remains visible', async ({
+  page,
+}) => {
+  await page.goto('/#/?demo=small');
+  const journey = page
+    .locator('.desktop-sidebar')
+    .getByRole('link', { name: 'Journey', exact: true });
+  await journey.click();
+
+  const pointerFocus = await journey.evaluate((link) => {
+    const style = getComputedStyle(link);
+    return {
+      focusVisible: link.matches(':focus-visible'),
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+    };
+  });
+  expect(pointerFocus.focusVisible).toBe(false);
+  expect(
+    pointerFocus.outlineStyle === 'none' || pointerFocus.outlineWidth === '0px',
+  ).toBe(true);
+
+  await page.keyboard.press('Tab');
+  const keyboardFocus = page.locator(
+    '.desktop-sidebar .main-navigation__link:focus-visible',
+  );
+  await expect(keyboardFocus).toHaveCount(1);
+  expect(
+    await keyboardFocus.evaluate((link) =>
+      Number.parseFloat(getComputedStyle(link).outlineWidth),
+    ),
+  ).toBeGreaterThanOrEqual(2);
+});
+
+test('authenticated shell controls remain consistent across every app screen', async ({
+  page,
+}) => {
+  for (const route of ['/', '/journey', '/analytics', '/settings']) {
+    await page.goto(`/#${route}?demo=small`);
+    await expect(
+      page.getByLabel('Current channel: HackFrame. Switch channel'),
+    ).toBeVisible();
+    await expect(page.locator('.app-header__freshness')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Refresh YouTube data' }),
+    ).toBeVisible();
+    await expect(page.getByLabel('TubeMilestones profile: Demo creator')).toBeVisible();
+  }
+});
+
 test('a newer stored snapshot appears once as a dismissible channel update', async ({
   page,
 }) => {
@@ -143,7 +255,7 @@ test('a newer stored snapshot appears once as a dismissible channel update', asy
 
   const update = page.getByRole('status', { name: 'New channel update' });
   await expect(update).toBeVisible();
-  await expect(update).toContainText('742 subscribers');
+  await expect(update).toContainText('586 subscribers');
   await expect(update).toContainText('+83');
   await expect(update).toContainText('48,200 views');
   await expect(update).toContainText('+14,251');
@@ -168,7 +280,9 @@ test('responsive matrix is overflow-free in dark and light themes', async ({
     { width: 412, height: 915 },
     { width: 430, height: 932 },
     { width: 768, height: 1024 },
+    { width: 1024, height: 900 },
     { width: 1440, height: 900 },
+    { width: 1600, height: 1000 },
   ];
 
   for (const viewport of viewports) {

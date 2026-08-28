@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Trash2,
   Unplug,
-  UserRound,
 } from 'lucide-react';
 import appPackage from '../../../package.json';
 import { Button } from '../../components/common/Button';
@@ -210,9 +209,8 @@ export default function SettingsPage() {
             <h2 id="profile-title">TubeMilestones profile</h2>
             <p>Your profile is separate from every connected YouTube account.</p>
           </div>
-          <UserRound size={20} aria-hidden="true" />
         </div>
-        <div className="settings-list settings-profile">
+        <div className="settings-list settings-list--rows settings-profile">
           <div className="settings-profile__summary">
             <ProfileAvatar initials={profileInitials} size="large" />
             <div className="settings-row__copy">
@@ -293,7 +291,7 @@ export default function SettingsPage() {
 
       <section className="settings-group" aria-labelledby="account-title">
         <h2 id="account-title">TubeMilestones account</h2>
-        <div className="settings-list">
+        <div className="settings-list settings-list--rows">
           <div className="settings-row settings-row--account-identity">
             <div className="settings-row__copy">
               <strong>
@@ -329,7 +327,7 @@ export default function SettingsPage() {
             </p>
           </div>
         </div>
-        <div className="settings-list settings-connections">
+        <div className="settings-list settings-list--rows settings-connections">
           {connections.length > 0 ? (
             connections.map((account) => {
               const accountChannels = channels.filter(
@@ -434,7 +432,7 @@ export default function SettingsPage() {
 
       <section className="settings-group" aria-labelledby="appearance-title">
         <h2 id="appearance-title">Appearance</h2>
-        <div className="settings-list">
+        <div className="settings-list settings-list--rows">
           <div className="settings-row settings-row--stack-mobile">
             <div className="settings-row__copy">
               <strong>Color theme</strong>
@@ -461,7 +459,7 @@ export default function SettingsPage() {
         <>
           <section className="settings-group" aria-labelledby="youtube-data-title">
             <h2 id="youtube-data-title">YouTube data</h2>
-            <div className="settings-list">
+            <div className="settings-list settings-list--rows">
               <div className="settings-row">
                 <div className="settings-row__copy">
                   <strong>Last refresh</strong>
@@ -575,7 +573,7 @@ export default function SettingsPage() {
           </div>
           <ShieldCheck size={20} aria-hidden="true" />
         </div>
-        <div className="settings-list">
+        <div className="settings-list settings-list--rows">
           <div className="settings-row">
             <div className="settings-row__copy">
               <strong>YouTube access</strong>
@@ -619,7 +617,7 @@ export default function SettingsPage() {
 
       <section className="settings-group" aria-labelledby="about-title">
         <h2 id="about-title">About</h2>
-        <div className="settings-list settings-list--links">
+        <div className="settings-list settings-list--rows settings-list--links">
           <a href="./privacy.html">
             <span>Privacy policy</span>
             <ExternalLink size={15} aria-hidden="true" />

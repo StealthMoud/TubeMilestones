@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
     range === 'ALL'
       ? 'All available history'
       : summary.difference === null
-        ? 'Comparison needs an earlier complete period'
+        ? "Previous-period comparison isn't available yet"
         : summary.difference === 0
           ? 'No change vs previous period'
           : `${summary.difference > 0 ? '+' : '−'}${metricValue(Math.abs(summary.difference), metric, true)} vs previous period`;
@@ -115,42 +115,43 @@ export default function AnalyticsPage() {
           <p className="page-heading__context">Analytics</p>
           <h1>{METRICS.find(({ value }) => value === metric)?.label}</h1>
         </div>
-        <div
-          className="segmented-scroll analytics-range"
-          role="group"
-          aria-label="Analytics range"
-        >
-          {RANGES.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className="segment-button"
-              aria-pressed={range === option.value}
-              onClick={() => setRange(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="analytics-toolbar">
+          <div
+            className="segmented-scroll analytics-metrics"
+            role="group"
+            aria-label="Analytics metric"
+          >
+            {METRICS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className="segment-button"
+                aria-pressed={metric === option.value}
+                onClick={() => setMetric(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="segmented-scroll analytics-range"
+            role="group"
+            aria-label="Analytics range"
+          >
+            {RANGES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className="segment-button"
+                aria-pressed={range === option.value}
+                onClick={() => setRange(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
-
-      <div
-        className="segmented-scroll analytics-metrics"
-        role="group"
-        aria-label="Analytics metric"
-      >
-        {METRICS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            className="segment-button"
-            aria-pressed={metric === option.value}
-            onClick={() => setMetric(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
 
       {history.partial ? (
         <div className="context-banner context-banner--warning" role="status">

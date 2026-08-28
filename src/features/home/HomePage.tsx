@@ -8,11 +8,7 @@ import { definitionsFor } from '../../domain/milestones/definitions';
 import { evaluateMilestones } from '../../domain/milestones/engine';
 import { channelMetricValue } from '../../domain/metrics/currentValue';
 import { formatReportingDay } from '../../domain/metrics/dates';
-import {
-  formatCompactNumber,
-  formatFullNumber,
-  metricLabel,
-} from '../../domain/metrics/format';
+import { formatCompactNumber, formatFullNumber } from '../../domain/metrics/format';
 import type { MetricType } from '../../domain/models';
 import { useTubeMilestones } from '../../hooks/useTubeMilestones';
 
@@ -35,6 +31,7 @@ export default function HomePage() {
   const movementRows = data.analyticsDaily.slice(-28);
   const movement = recentMovement(movementRows);
   const chartRows = movementRows.slice(-14);
+  const denseMovement = movementRows.length >= 8;
   const maxChartViews = Math.max(1, ...chartRows.map(({ views }) => views));
   const definitions = definitionsFor(metric);
   const achievedNodes =
@@ -95,7 +92,6 @@ export default function HomePage() {
           <p className="page-heading__context">Channel overview</p>
           <h1 dir="auto">{data.channel.title}</h1>
         </div>
-        <span>{metricLabel(metric)} progress</span>
       </header>
 
       <section className="home-overview" aria-label="Channel milestone overview">
@@ -137,6 +133,37 @@ export default function HomePage() {
             <div className="empty-inline">
               <strong>Analytics is still arriving.</strong>
               <p>Channel milestones continue to work normally.</p>
+            </div>
+          ) : !denseMovement ? (
+            <div className="movement-sparse">
+              <dl className="movement-sparse__values">
+                <div>
+                  <dd>
+                    {movement.netSubscribers >= 0 ? '+' : ''}
+                    {formatFullNumber(movement.netSubscribers)}
+                  </dd>
+                  <dt>subscribers</dt>
+                </div>
+                <div>
+                  <dd>
+                    {movement.views > 0 ? '+' : ''}
+                    {formatFullNumber(movement.views)}
+                  </dd>
+                  <dt>views</dt>
+                </div>
+                <div>
+                  <dd>
+                    {movement.watchHours > 0 ? '+' : ''}
+                    {formatCompactNumber(movement.watchHours)}h
+                  </dd>
+                  <dt>watch time</dt>
+                </div>
+              </dl>
+              <p>
+                {movementRows.length} reported{' '}
+                {movementRows.length === 1 ? 'day' : 'days'} since{' '}
+                {formatReportingDay(movementRows[0]!.day)}
+              </p>
             </div>
           ) : (
             <>

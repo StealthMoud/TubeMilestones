@@ -10,18 +10,29 @@
   gap: var(--space-4);
 }
 
+.journey-heading h1 {
+  font-size: clamp(1.875rem, 3vw, 2.125rem);
+}
+
 .journey-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(17rem, 20rem);
+  grid-template-columns: minmax(0, 2.15fr) minmax(17rem, 1fr);
   align-items: start;
-  gap: clamp(2rem, 5vw, 4rem);
+  gap: clamp(1.5rem, 3vw, 2.5rem);
 }
 
 .journey-primary,
 .journey-secondary {
   display: grid;
   min-width: 0;
+}
+
+.journey-primary {
   gap: var(--space-8);
+}
+
+.journey-secondary {
+  gap: var(--space-6);
 }
 
 .journey-upcoming,
@@ -322,21 +333,10 @@
 .custom-goals-empty {
   display: grid;
   width: 100%;
-  min-height: 72px;
-  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  border: 0;
+  padding: var(--space-3) 0 var(--space-4);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.custom-goals-empty > svg {
-  color: var(--color-accent-strong);
 }
 
 .custom-goals-empty > span {
@@ -452,8 +452,12 @@
 .ypp-guide > small {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   line-height: 1.55;
+}
+
+.ypp-guide__intro {
+  color: var(--color-text-secondary);
 }
 
 .ypp-guide__meters {
@@ -462,14 +466,16 @@
 
 .guidance-meter {
   display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4) 0;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--color-border);
 }
 
 .guidance-meter__copy {
   display: grid;
-  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
 }
 
 .guidance-meter__copy > div {
@@ -490,12 +496,13 @@
 .guidance-meter__copy > span {
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 @media (max-width: 900px) {
   .journey-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(15rem, 17rem);
-    gap: var(--space-8);
+    grid-template-columns: minmax(0, 1.85fr) minmax(15rem, 1fr);
+    gap: var(--space-6);
   }
 }
 

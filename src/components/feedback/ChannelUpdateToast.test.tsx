@@ -71,7 +71,7 @@ describe('ChannelUpdateToast', () => {
     const first = render(<ChannelUpdateToast data={data} />);
 
     const update = screen.getByRole('status', { name: 'New channel update' });
-    expect(update).toHaveTextContent('742 subscribers');
+    expect(update).toHaveTextContent('586 subscribers');
     expect(update).toHaveTextContent('+83');
     expect(update).toHaveTextContent('48,200 views');
     expect(update).toHaveTextContent('+14,251');

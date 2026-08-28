@@ -371,8 +371,35 @@ describe('TubeMilestones cloud application states', () => {
   it('renders Home with the next milestone as the dominant focal point', () => {
     show('/');
     expect(screen.getByRole('heading', { name: '1K' })).toBeVisible();
-    expect(screen.getByText('258 subscribers to go')).toBeVisible();
+    expect(screen.getByText('414 subscribers to go')).toBeVisible();
+    expect(screen.getByText('17%')).toBeVisible();
+    expect(screen.getByText(/Current segment 500 → 1K/u)).toBeVisible();
+    expect(screen.queryByText('59%')).not.toBeInTheDocument();
+    expect(screen.queryByText(/to next/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Subscribers progress/u)).not.toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: '1K' })).toHaveAttribute(
+      'aria-valuemin',
+      '500',
+    );
+    expect(screen.getByRole('progressbar', { name: '1K' })).toHaveAttribute(
+      'aria-valuemax',
+      '1000',
+    );
+    expect(screen.getByRole('progressbar', { name: '1K' })).toHaveAttribute(
+      'aria-valuenow',
+      '586',
+    );
     expect(screen.getByRole('heading', { name: 'Recent movement' })).toBeVisible();
+  });
+
+  it('uses a truthful compact summary when only a few analytics days exist', () => {
+    const data = createDemoDashboard('persian');
+    hookMocks.useTubeMilestones.mockReturnValue(appState({ data }));
+    show('/');
+
+    expect(screen.getByText('3 reported days since Aug 22')).toBeVisible();
+    expect(document.querySelector('.movement-chart')).not.toBeInTheDocument();
+    expect(document.querySelector('.movement-sparse')).toBeVisible();
   });
 
   it('switches across all channels while a bad non-selected connection stays isolated', async () => {
@@ -448,6 +475,16 @@ describe('TubeMilestones cloud application states', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Available' }));
     expect(screen.getByText('Available history')).toBeVisible();
     expect(screen.queryByText('All time')).not.toBeInTheDocument();
+  });
+
+  it('uses natural comparison copy when earlier history is incomplete', async () => {
+    const data = createDemoDashboard('new');
+    hookMocks.useTubeMilestones.mockReturnValue(appState({ data }));
+    show('/analytics');
+
+    expect(
+      await screen.findByText("Previous-period comparison isn't available yet"),
+    ).toBeVisible();
   });
 
   it('keeps hot Analytics visible when archive history is partial', async () => {

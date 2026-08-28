@@ -24,15 +24,12 @@ export function MilestoneHero({
   segmentProgress,
   precision,
 }: MilestoneHeroProps) {
-  const hidden = currentValue === null || precision === 'HIDDEN';
-  const overallProgress =
-    hidden || nextTarget === null
-      ? nextTarget === null
-        ? 1
-        : 0
-      : currentValue / nextTarget;
-  const clampedOverall = Math.min(1, Math.max(0, overallProgress));
-  const railProgress = Math.min(1, Math.max(0, segmentProgress ?? clampedOverall));
+  const unavailable = currentValue === null || precision === 'HIDDEN';
+  const hiddenSubscribers = metric === 'subscribers' && precision === 'HIDDEN';
+  const railProgress = Math.min(
+    1,
+    Math.max(0, segmentProgress ?? (nextTarget === null && !unavailable ? 1 : 0)),
+  );
   const markerPosition = Math.min(98, Math.max(2, railProgress * 100));
   const remaining =
     currentValue === null || nextTarget === null
@@ -41,52 +38,62 @@ export function MilestoneHero({
   const label = metricLabel(metric);
   const rounded =
     metric === 'subscribers' && precision === 'ROUNDED_THREE_SIGNIFICANT_FIGURES';
-  const accessibleValue = hidden
-    ? 'Subscriber count hidden. Milestone progress is unavailable.'
+  const accessibleValue = unavailable
+    ? hiddenSubscribers
+      ? 'Subscriber count hidden. Milestone progress is unavailable.'
+      : `${label} is not available. Milestone progress is unavailable.`
     : nextTarget === null
       ? `${formatFullNumber(currentValue)} ${label}. Highest configured checkpoint achieved.`
-      : `${rounded ? 'Approximately ' : ''}${formatFullNumber(currentValue)} of ${formatFullNumber(nextTarget)} ${label}. ${rounded ? 'API-reported progress' : `${formatFullNumber(remaining)} remaining`}. ${formatPercent(clampedOverall)} complete.`;
+      : `${rounded ? 'Approximately ' : ''}${formatFullNumber(currentValue)} ${label}. Current segment ${formatFullNumber(previousTarget)} to ${formatFullNumber(nextTarget)}. ${formatPercent(railProgress)} through the segment. ${rounded ? 'Remaining distance is approximate.' : `${formatFullNumber(remaining)} remaining.`}`;
+  const activeSegment = !unavailable && nextTarget !== null;
 
   return (
     <section
       className="milestone-hero"
       aria-labelledby="next-milestone-title"
-      role={hidden ? undefined : 'progressbar'}
-      aria-valuemin={hidden ? undefined : 0}
-      aria-valuemax={hidden ? undefined : 100}
-      aria-valuenow={hidden ? undefined : Math.round(clampedOverall * 100)}
-      aria-valuetext={accessibleValue}
+      role={activeSegment ? 'progressbar' : undefined}
+      aria-valuemin={activeSegment ? previousTarget : undefined}
+      aria-valuemax={activeSegment ? nextTarget : undefined}
+      aria-valuenow={activeSegment ? currentValue : undefined}
+      aria-valuetext={activeSegment ? accessibleValue : undefined}
     >
       <div className="milestone-hero__summary">
         <div className="milestone-hero__value">
           <span>Current</span>
-          <strong>{hidden ? '—' : formatCompactNumber(currentValue)}</strong>
+          <strong>{unavailable ? '—' : formatCompactNumber(currentValue)}</strong>
           <small>{label}</small>
         </div>
+        <span className="milestone-hero__relation" aria-hidden="true">
+          →
+        </span>
         <div className="milestone-hero__target">
           <span>Next milestone</span>
           <h2 id="next-milestone-title">
-            {hidden
-              ? 'Count hidden'
+            {unavailable
+              ? hiddenSubscribers
+                ? 'Count hidden'
+                : 'Not available'
               : nextTarget === null
                 ? 'Trail complete'
                 : formatCompactNumber(nextTarget)}
           </h2>
-          {!hidden && nextTarget !== null ? <small>{label}</small> : null}
+          {!unavailable && nextTarget !== null ? <small>{label}</small> : null}
         </div>
-        {!hidden ? (
+        {!unavailable ? (
           <div className="milestone-hero__percent">
-            <strong>{formatPercent(clampedOverall)}</strong>
-            <span>{nextTarget === null ? 'complete' : 'to next'}</span>
+            <span>{nextTarget === null ? 'Journey' : 'Segment progress'}</span>
+            <strong>{formatPercent(nextTarget === null ? 1 : railProgress)}</strong>
+            <small>{nextTarget === null ? 'complete' : 'through segment'}</small>
           </div>
         ) : null}
       </div>
 
-      {hidden ? (
+      {unavailable ? (
         <div className="milestone-hero__hidden">
           <p>
-            This channel hides its subscriber count, so TubeMilestones cannot calculate
-            subscriber checkpoints.
+            {hiddenSubscribers
+              ? 'This channel hides its subscriber count, so TubeMilestones cannot calculate subscriber checkpoints.'
+              : `${label} is not available yet. Other channel milestones continue to work normally.`}
           </p>
         </div>
       ) : (
@@ -111,11 +118,10 @@ export function MilestoneHero({
                 ? 'Highest configured checkpoint achieved'
                 : formatRemaining(remaining, metric, precision)}
             </strong>
-            {nextTarget !== null && segmentProgress !== null ? (
+            {nextTarget !== null ? (
               <span>
-                {formatPercent(segmentProgress)} through the{' '}
-                {formatCompactNumber(previousTarget)}–{formatCompactNumber(nextTarget)}{' '}
-                segment
+                Current segment {formatCompactNumber(previousTarget)} →{' '}
+                {formatCompactNumber(nextTarget)}
               </span>
             ) : null}
           </div>

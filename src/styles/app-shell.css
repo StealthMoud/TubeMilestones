@@ -507,6 +507,15 @@
     background-color var(--motion-fast) ease-out;
 }
 
+.main-navigation__link:focus {
+  outline: none;
+}
+
+.main-navigation__link:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
 .main-navigation__link::before {
   content: '';
   position: absolute;

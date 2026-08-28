@@ -93,7 +93,7 @@ dd {
   transition: transform var(--motion-standard) var(--ease-enter);
 }
 
-.skip-link:focus {
+.skip-link:focus-visible {
   transform: translateY(0);
 }
 

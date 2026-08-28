@@ -304,7 +304,10 @@ test('connected Home is milestone-first', async ({ page }) => {
   await page.goto('/#/?demo=small');
   await expect(page.getByText('DEMO DATA')).toBeVisible();
   await expect(page.getByRole('heading', { name: '1K' })).toBeVisible();
-  await expect(page.getByText('258 subscribers to go')).toBeVisible();
+  await expect(page.getByText('414 subscribers to go')).toBeVisible();
+  await expect(page.getByText('17%')).toBeVisible();
+  await expect(page.getByText(/Current segment 500 → 1K/u)).toBeVisible();
+  await expect(page.getByText('59%')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Recent movement' })).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Journey checkpoints' }),
@@ -410,7 +413,20 @@ test('Persian channel names keep natural text direction and large values stay sa
   await page.goto('/#/?demo=persian');
   const persianHeading = page.getByRole('heading', { name: 'آخه چرا؟' });
   await expect(persianHeading).toHaveAttribute('dir', 'auto');
-  await expect(page.getByText('75 subscribers to go')).toBeVisible();
+  await expect(page.getByText('72 subscribers to go')).toBeVisible();
+  await expect(page.locator('.movement-sparse')).toBeVisible();
+  await expect(page.locator('.movement-chart')).toHaveCount(0);
+  await expect(page.getByText('3 reported days since Aug 22')).toBeVisible();
+  await expect(page.locator('.channel-switcher summary strong')).toHaveAttribute(
+    'dir',
+    'auto',
+  );
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto('/#/journey?demo=persian');
+  await expect(page.locator('.custom-goals-empty')).toContainText(
+    'Create one for a personal target.',
+  );
   await expectNoHorizontalOverflow(page);
 
   await page.goto('/#/?demo=large');

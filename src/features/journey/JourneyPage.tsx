@@ -395,17 +395,12 @@ export default function JourneyPage() {
               </Button>
             </div>
             {data.customGoals.length === 0 ? (
-              <button
-                className="custom-goals-empty"
-                type="button"
-                onClick={openGoalDialog}
-              >
-                <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
+              <div className="custom-goals-empty">
                 <span>
-                  <strong>No custom checkpoints yet.</strong>
-                  <small>Choose a metric, target, and optional date.</small>
+                  <strong>No custom checkpoints</strong>
+                  <small>Create one for a personal target.</small>
                 </span>
-              </button>
+              </div>
             ) : (
               <ul className="custom-goal-list">
                 {data.customGoals.map((goal) => {
