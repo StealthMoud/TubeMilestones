@@ -130,6 +130,34 @@ test('Journey keeps one next checkpoint, shows history, and exports a PNG', asyn
   await expectNoHorizontalOverflow(page);
 });
 
+test('a newer stored snapshot appears once as a dismissible channel update', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const key = 'tubemilestones:last-seen-snapshot:v1:demo-small';
+    if (window.localStorage.getItem(key) === null) {
+      window.localStorage.setItem(key, '2026-07-12T09:30:00.000Z');
+    }
+  });
+  await page.goto('/#/?demo=small');
+
+  const update = page.getByRole('status', { name: 'New channel update' });
+  await expect(update).toBeVisible();
+  await expect(update).toContainText('742 subscribers');
+  await expect(update).toContainText('+83');
+  await expect(update).toContainText('48,200 views');
+  await expect(update).toContainText('+14,251');
+  await expect(update).toContainText('23 uploads');
+  await expect(update).toContainText('+2');
+  await expect(update).toContainText('Since the previous snapshot');
+  await expectNoHorizontalOverflow(page);
+
+  await page.getByRole('button', { name: 'Dismiss channel update' }).click();
+  await expect(update).toBeHidden();
+  await page.reload();
+  await expect(update).toBeHidden();
+});
+
 test('responsive matrix is overflow-free in dark and light themes', async ({
   page,
 }) => {

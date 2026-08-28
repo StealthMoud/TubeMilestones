@@ -254,16 +254,20 @@ test('profile, settings, and destructive confirmation fit common mobile widths',
     await expectNoHorizontalOverflow(page);
 
     await page.goto('/#/settings?demo=unconnected');
+    await page.reload();
     await expect(
       page.getByRole('heading', { name: 'Connected YouTube accounts' }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.getByRole('button', { name: 'Delete account' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Delete TubeMilestones account?' }),
-    ).toBeVisible();
+    const dialog = page.getByRole('dialog', {
+      name: 'Delete TubeMilestones account?',
+    });
+    await expect(dialog).toBeVisible();
     await expectNoHorizontalOverflow(page);
+    await dialog.getByRole('button', { name: 'Close dialog' }).click();
+    await expect(dialog).toBeHidden();
   }
 });
 
@@ -320,6 +324,53 @@ test('connected Home is milestone-first', async ({ page }) => {
     expect(target.height).toBeGreaterThanOrEqual(44);
   }
   await expectNoHorizontalOverflow(page);
+});
+
+test('channel updates stay above mobile navigation with a full touch target', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const key = 'tubemilestones:last-seen-snapshot:v1:demo-small';
+    if (window.localStorage.getItem(key) === null) {
+      window.localStorage.setItem(key, '2026-07-12T09:30:00.000Z');
+    }
+  });
+  await page.goto('/#/?demo=small');
+
+  const update = page.getByRole('status', { name: 'New channel update' });
+  const close = page.getByRole('button', { name: 'Dismiss channel update' });
+  await expect(update).toBeVisible();
+  await update.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
+  const layout = await page.evaluate(() => {
+    const card = document.querySelector('.channel-update');
+    const navigation = document.querySelector('.mobile-navigation-wrap');
+    const closeButton = document.querySelector('.channel-update__close');
+    if (!card || !navigation || !closeButton) return null;
+    const cardBox = card.getBoundingClientRect();
+    const navigationBox = navigation.getBoundingClientRect();
+    const closeBox = closeButton.getBoundingClientRect();
+    return {
+      cardLeft: cardBox.left,
+      cardRight: cardBox.right,
+      cardBottom: cardBox.bottom,
+      navigationTop: navigationBox.top,
+      closeWidth: closeBox.width,
+      closeHeight: closeBox.height,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(layout).not.toBeNull();
+  expect(layout!.cardLeft).toBeGreaterThanOrEqual(0);
+  expect(layout!.cardRight).toBeLessThanOrEqual(layout!.viewportWidth);
+  expect(layout!.cardBottom).toBeLessThanOrEqual(layout!.navigationTop + 1);
+  expect(layout!.closeWidth).toBeGreaterThanOrEqual(44);
+  expect(layout!.closeHeight).toBeGreaterThanOrEqual(44);
+  await expectNoHorizontalOverflow(page);
+
+  await close.click();
+  await expect(update).toBeHidden();
 });
 
 test('Journey shows achieved history without future tiers and switches metrics', async ({

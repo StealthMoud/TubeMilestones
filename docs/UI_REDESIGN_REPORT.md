@@ -73,6 +73,15 @@ The detailed baseline evidence is in [UI_REDESIGN_AUDIT.md](./UI_REDESIGN_AUDIT.
 - Added outside-click and Escape dismissal to both popovers, with focus restored on Escape.
 - Preserved the mobile bottom navigation and safe-area behavior.
 
+### Returning-channel updates
+
+- Added a compact **New channel update** card when a channel has a newer stored snapshot than the one last seen in that browser.
+- Shows real current subscribers, views, and uploads alongside signed movement from the preceding snapshot; unchanged metrics are omitted and hidden subscriber counts are never inferred.
+- Establishes a quiet baseline on first use, records only the last-seen snapshot timestamp per channel, and never persists metric values, account data, or credentials.
+- Appears above the mobile navigation or at the lower-right on desktop, closes on demand, and dismisses automatically after eight seconds.
+- Auto-dismiss pauses while hovered or keyboard-focused. Milestone celebrations take priority, so the update waits until the celebration has been handled.
+- Uses a short ease-out entrance and ease-in exit; the existing reduced-motion policy removes nonessential movement.
+
 ### Landing and authentication
 
 - Reduced the marketing headline to product scale and brought authentication into the first desktop viewport.
@@ -137,6 +146,7 @@ Visual review was performed iteratively in the browser after each major screen:
 | Analytics    | 1440×1000 | 390×844  | 28D, Available, archive, partial archive                             |
 | Settings     | 1440×1000 | 390×844  | connected, zero-channel, profile edit, theme, destructive dialog     |
 | Landing/auth | 1440×1000 | 390×844  | signed out, unconfigured cloud, signup, recovery                     |
+| Update card  | 1440×900  | 390×844  | dark, light, multi-metric movement, dismiss and no-repeat            |
 | Tablet       | —         | 768×1024 | Journey and Settings intermediate layouts                            |
 
 Screenshot binaries were intentionally not added to Git; they are large, transient QA artifacts and the repository has no committed screenshot baseline. The automated suite uses behavioral and geometry assertions instead of brittle pixel snapshots.
@@ -147,10 +157,10 @@ Screenshot binaries were intentionally not added to Git; they are large, transie
 - `npm run format:check`: passed.
 - `npm run lint`: passed with zero warnings.
 - `npm run typecheck`: passed.
-- `npm run test`: 36 files, 242 tests passed.
+- `npm run test`: 38 files, 252 tests passed.
 - `npm run backend:lint`: 48 files checked, passed.
 - `npm run backend:check`: all eight Edge Function entry points checked, passed.
-- `npm run test:e2e`: 37 tests passed across 390px mobile, 430px mobile, and 1440px desktop projects.
+- `npm run test:e2e`: 40 tests passed across 390px mobile, 430px mobile, and 1440px desktop projects.
 - `npm run build`: passed; production bundle generated.
 - `npm run audit:bundle`: production secret-boundary audit passed.
 - `git diff --check`: passed.

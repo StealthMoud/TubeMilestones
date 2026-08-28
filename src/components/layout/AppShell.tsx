@@ -8,6 +8,7 @@ import { userMessageForError } from '../../services/errors';
 import { BrandMark } from '../common/BrandMark';
 import { ChannelSwitcher } from '../common/ChannelSwitcher';
 import { ProfileMenu } from '../common/ProfileMenu';
+import { ChannelUpdateToast } from '../feedback/ChannelUpdateToast';
 import { MilestoneCelebration } from '../feedback/MilestoneCelebration';
 
 const NAV_ITEMS = [
@@ -48,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     error,
     isDemo,
     authUser,
+    newMilestone,
     displayName,
     profileInitials,
     refresh,
@@ -166,6 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="mobile-navigation-wrap">
         <MainNavigation />
       </div>
+      {newMilestone ? null : <ChannelUpdateToast data={data} />}
       <MilestoneCelebration />
     </div>
   );
